@@ -19,7 +19,7 @@ export default async function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="text-muted-foreground mt-1">
-          Customize your FocusFlow experience
+          Customize your ADHDo experience
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default async function SettingsPage() {
           <div className="flex items-center gap-3 mb-4">
             <span className="text-3xl">✦</span>
             <div>
-              <p className="font-medium">FocusFlow</p>
+              <p className="font-medium">ADHDo</p>
               <p className="text-sm text-muted-foreground">
                 Simple tasks for focused minds
               </p>

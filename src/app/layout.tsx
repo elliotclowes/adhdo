@@ -9,7 +9,7 @@ import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FocusFlow - Simple Tasks for Focused Minds',
+  title: 'ADHDo - Simple Tasks for Focused Minds',
   description: 'An ADHD-friendly todo app that keeps things simple',
   manifest: '/manifest.json',
 }

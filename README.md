@@ -1,4 +1,4 @@
-# ✦ FocusFlow
+# ✦ ADHDo
 
 A simple, ADHD-friendly todo app designed to prevent overwhelm and keep you focused.
 
@@ -77,7 +77,7 @@ AUTH_URL="http://localhost:3000"
 RESEND_API_KEY="re_xxxxxxxxxxxx"
 
 # Email sender (verify domain in Resend, or use onboarding@resend.dev for testing)
-EMAIL_FROM="FocusFlow <onboarding@resend.dev>"
+EMAIL_FROM="ADHDo <onboarding@resend.dev>"
 
 # Optional: For Vercel Cron (daily email summaries)
 CRON_SECRET="your-cron-secret"

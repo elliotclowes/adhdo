@@ -33,7 +33,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <span className="text-5xl">✦</span>
-          <h1 className="text-2xl font-semibold mt-4">FocusFlow</h1>
+          <h1 className="text-2xl font-semibold mt-4">ADHDo</h1>
           <p className="text-muted-foreground mt-2">
             Simple tasks for focused minds
           </p>

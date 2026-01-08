@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderOpen, Loader2, Pencil } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -16,6 +17,21 @@ import { updateTodo } from '@/lib/actions/todos'
 import { getAreas } from '@/lib/actions/areas'
 import { useAppStore } from '@/lib/store'
 import type { TodoWithRelations } from '@/lib/types'
+
+// Custom markdown components with proper link styling
+const MarkdownComponents = {
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary underline hover:text-primary/80"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </a>
+  ),
+}
 
 interface SortTaskListProps {
   initialTodos: TodoWithRelations[]
@@ -101,9 +117,11 @@ export function SortTaskList({ initialTodos, totalCount }: SortTaskListProps) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-foreground">{todo.title}</h3>
                 {todo.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {todo.description}
-                  </p>
+                  <div className="text-sm text-muted-foreground mt-1 line-clamp-2 prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown components={MarkdownComponents}>
+                      {todo.description}
+                    </ReactMarkdown>
+                  </div>
                 )}
                 <div className="flex items-center gap-2 mt-2">
                   {todo.tags?.map(({ tag }) => (

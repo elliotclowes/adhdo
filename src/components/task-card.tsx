@@ -14,6 +14,21 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { cn, formatDuration, getPriorityLabel, getPriorityClass } from '@/lib/utils'
+
+// Custom markdown components with proper link styling
+const MarkdownComponents = {
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary underline hover:text-primary/80"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </a>
+  ),
+}
 import { TaskCheckbox } from './task-checkbox'
 import { completeTodo } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
@@ -166,7 +181,9 @@ export function TaskCard({
               {/* Description - always rendered as markdown */}
               {todo.description && !compact && (
                 <div className="mt-1 text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-2">
-                  <ReactMarkdown>{todo.description}</ReactMarkdown>
+                  <ReactMarkdown components={MarkdownComponents}>
+                    {todo.description}
+                  </ReactMarkdown>
                 </div>
               )}
 

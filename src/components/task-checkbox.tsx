@@ -11,6 +11,7 @@ interface TaskCheckboxProps {
   onCheckedChange: (checked: boolean) => void
   priority: number
   disabled?: boolean
+  tabIndex?: number
 }
 
 export function TaskCheckbox({
@@ -18,6 +19,7 @@ export function TaskCheckbox({
   onCheckedChange,
   priority,
   disabled,
+  tabIndex,
 }: TaskCheckboxProps) {
   const [showStar, setShowStar] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -57,10 +59,12 @@ export function TaskCheckbox({
         type="button"
         onClick={handleClick}
         disabled={disabled}
+        tabIndex={tabIndex}
         whileTap={{ scale: 0.9 }}
         className={cn(
           'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+          tabIndex !== -1 && 'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+          tabIndex === -1 && 'focus:outline-none',
           checked
             ? checkedColors[priority as keyof typeof checkedColors]
             : priorityColors[priority as keyof typeof priorityColors],

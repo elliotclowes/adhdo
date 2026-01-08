@@ -7,7 +7,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     Resend({
-      from: process.env.EMAIL_FROM || 'FocusFlow <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'ADHDo <onboarding@resend.dev>',
     }),
   ],
   pages: {

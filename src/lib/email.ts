@@ -21,7 +21,7 @@ export async function sendTaskReminder(
   const durationText = todo.duration ? formatDuration(todo.duration) : null
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'FocusFlow <onboarding@resend.dev>',
+    from: process.env.EMAIL_FROM || 'ADHDo <onboarding@resend.dev>',
     to: email,
     subject: `⏰ Reminder: ${todo.title}`,
     html: `
@@ -47,7 +47,7 @@ export async function sendTaskReminder(
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">✦ FocusFlow</div>
+              <div class="logo">✦ ADHDo</div>
             </div>
             <p>Hey! Just a quick reminder about this task:</p>
             <div class="task-card">
@@ -60,7 +60,7 @@ export async function sendTaskReminder(
             </div>
             <p style="margin-top: 20px;">You've got this! 💪</p>
             <div class="footer">
-              <p>FocusFlow – Simple tasks for focused minds</p>
+              <p>ADHDo – Simple tasks for focused minds</p>
             </div>
           </div>
         </body>
@@ -125,7 +125,7 @@ export async function sendDailySummary(userId: string) {
           .join('')}</ul>`
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'FocusFlow <onboarding@resend.dev>',
+    from: process.env.EMAIL_FROM || 'ADHDo <onboarding@resend.dev>',
     to: user.email,
     subject: `📋 Your tasks for ${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`,
     html: `
@@ -149,7 +149,7 @@ export async function sendDailySummary(userId: string) {
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">✦ FocusFlow</div>
+              <div class="logo">✦ ADHDo</div>
             </div>
             
             <p>${greeting}</p>
@@ -188,7 +188,7 @@ export async function sendDailySummary(userId: string) {
             <p style="margin-top: 20px;">Have a productive day! 🌟</p>
             
             <div class="footer">
-              <p>FocusFlow – Simple tasks for focused minds</p>
+              <p>ADHDo – Simple tasks for focused minds</p>
             </div>
           </div>
         </body>

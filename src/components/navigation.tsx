@@ -48,7 +48,7 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
       <div className="p-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-2xl">✦</span>
-          <span className="font-semibold text-lg">FocusFlow</span>
+          <span className="font-semibold text-lg">ADHDo</span>
         </Link>
       </div>
 
