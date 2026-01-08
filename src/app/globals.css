@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-plus-jakarta: 'Plus Jakarta Sans', system-ui, sans-serif;
+    
+    /* Soft, calming light theme */
+    --background: 40 33% 98%;
+    --foreground: 240 10% 15%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 15%;
+    
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 15%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 243 75% 59%;
+    
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 9%;
+    --foreground: 0 0% 95%;
+    
+    --card: 240 10% 12%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 240 10% 12%;
+    --popover-foreground: 0 0% 95%;
+    
+    --primary: 243 75% 65%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 240 5% 17%;
+    --secondary-foreground: 0 0% 95%;
+    
+    --muted: 240 5% 17%;
+    --muted-foreground: 240 5% 55%;
+    
+    --accent: 240 5% 17%;
+    --accent-foreground: 0 0% 95%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 5% 20%;
+    --input: 240 5% 20%;
+    --ring: 243 75% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-plus-jakarta);
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer components {
+  /* Priority badge styles */
+  .priority-vital {
+    @apply bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400;
+  }
+  
+  .priority-important {
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400;
+  }
+  
+  .priority-normal {
+    @apply bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400;
+  }
+  
+  .priority-someday {
+    @apply bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400;
+  }
+  
+  /* Priority dot indicators */
+  .priority-dot-vital {
+    @apply bg-red-500;
+  }
+  
+  .priority-dot-important {
+    @apply bg-amber-500;
+  }
+  
+  .priority-dot-normal {
+    @apply bg-indigo-500;
+  }
+  
+  .priority-dot-someday {
+    @apply bg-slate-400;
+  }
+  
+  /* Task card hover effect */
+  .task-card {
+    @apply transition-all duration-200 ease-out;
+  }
+  
+  .task-card:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
+  
+  /* Checkbox custom styling */
+  .task-checkbox {
+    @apply w-5 h-5 rounded-full border-2 border-border 
+           flex items-center justify-center cursor-pointer
+           transition-all duration-200 ease-out
+           hover:border-primary hover:scale-110;
+  }
+  
+  .task-checkbox.checked {
+    @apply bg-primary border-primary;
+  }
+  
+  /* Completion star animation container */
+  .completion-star {
+    @apply absolute inset-0 pointer-events-none overflow-hidden;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Text balance for better readability */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Safe area padding for mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Framer Motion styles for star animation */
+.star-particle {
+  position: absolute;
+  pointer-events: none;
+}

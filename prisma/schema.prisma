@@ -1,0 +1,169 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Auth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Application models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // User preferences
+  dailyTaskLimit        Int     @default(3)
+  vitalTaskLimit        Int?    // Optional per-priority limits
+  importantTaskLimit    Int?
+  notImportantTaskLimit Int?
+  somedayTaskLimit      Int?
+  dailySummaryTime      String  @default("07:00") // HH:mm format
+  timezone              String  @default("Europe/London")
+
+  accounts Account[]
+  sessions Session[]
+  areas    Area[]
+  tags     Tag[]
+  todos    Todo[]
+}
+
+model Area {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1") // Default indigo
+  icon      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos  Todo[]
+
+  @@unique([userId, name])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#8b5cf6") // Default violet
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos  TodoTag[]
+
+  @@unique([userId, name])
+}
+
+model Todo {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  
+  // Priority: 1=Vital, 2=Important, 3=Not Important, 4=Someday
+  priority    Int      @default(3)
+  
+  // Scheduling
+  scheduledDate DateTime? // The date/time this todo is scheduled for
+  duration      Int?      // Duration in minutes
+  
+  // Status
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  
+  // Hierarchy (max 3 levels: parent -> child -> grandchild)
+  parentId      String?
+  parent        Todo?     @relation("TodoHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children      Todo[]    @relation("TodoHierarchy")
+  depth         Int       @default(0) // 0 = root, 1 = child, 2 = grandchild
+  
+  // Recurring configuration
+  isRecurring       Boolean @default(false)
+  recurringPattern  String? // RRULE-like pattern stored as JSON
+  recurringParentId String? // If this is a generated instance of a recurring todo
+  
+  // Metadata
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  areaId String?
+  area   Area?  @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  
+  tags TodoTag[]
+
+  @@index([userId, isCompleted])
+  @@index([userId, scheduledDate])
+  @@index([userId, areaId])
+  @@index([parentId])
+}
+
+model TodoTag {
+  todoId String
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([todoId, tagId])
+}
+
+// For tracking recurring todo generation
+model RecurringTodoInstance {
+  id              String   @id @default(cuid())
+  recurringTodoId String   // The template todo ID
+  generatedTodoId String   // The actual todo instance ID
+  scheduledFor    DateTime // When this instance was scheduled for
+  createdAt       DateTime @default(now())
+
+  @@unique([recurringTodoId, scheduledFor])
+}
