@@ -1,28 +1,21 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import {
   Clock,
   Calendar,
+  ChevronDown,
   ChevronRight,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
   FolderOpen,
+  Repeat,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { cn, formatTimeLeft, formatDuration, getPriorityLabel, getPriorityClass } from '@/lib/utils'
+import { cn, formatDuration, getPriorityLabel, getPriorityClass } from '@/lib/utils'
 import { TaskCheckbox } from './task-checkbox'
-import { Button } from './ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu'
-import { completeTodo, uncompleteTodo, deleteTodo } from '@/lib/actions/todos'
+import { completeTodo } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
 import type { TodoWithRelations } from '@/lib/types'
 
@@ -33,47 +26,91 @@ interface TaskCardProps {
   compact?: boolean
 }
 
+// Calculate time status based on scheduled date/time and duration
+function getTimeStatus(scheduledDate: Date, duration: number | null): { label: string; isOverdue: boolean; isDue: boolean } | null {
+  const now = new Date()
+  const scheduled = new Date(scheduledDate)
+  const durationMs = (duration || 0) * 60 * 1000
+  const endTime = new Date(scheduled.getTime() + durationMs)
+  
+  // Task hasn't started yet
+  if (now < scheduled) {
+    return null
+  }
+  
+  // Task is currently due (between start and end time)
+  if (now >= scheduled && now <= endTime) {
+    const remainingMs = endTime.getTime() - now.getTime()
+    const remainingMins = Math.ceil(remainingMs / 60000)
+    
+    if (remainingMins <= 60) {
+      return { label: `${remainingMins}m left`, isOverdue: false, isDue: true }
+    } else {
+      const hours = Math.floor(remainingMins / 60)
+      const mins = remainingMins % 60
+      return { label: mins > 0 ? `${hours}h ${mins}m left` : `${hours}h left`, isOverdue: false, isDue: true }
+    }
+  }
+  
+  // Task is overdue (past end time)
+  const overdueMs = now.getTime() - endTime.getTime()
+  const overdueMins = Math.floor(overdueMs / 60000)
+  
+  if (overdueMins < 60) {
+    return { label: `${overdueMins}m overdue`, isOverdue: true, isDue: false }
+  } else if (overdueMins < 1440) {
+    const hours = Math.floor(overdueMins / 60)
+    return { label: `${hours}h overdue`, isOverdue: true, isDue: false }
+  } else {
+    const days = Math.floor(overdueMins / 1440)
+    return { label: `${days}d overdue`, isOverdue: true, isDue: false }
+  }
+}
+
 export function TaskCard({
   todo,
   showArea = true,
   showSubtasks = true,
   compact = false,
 }: TaskCardProps) {
+  const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [isCompleting, setIsCompleting] = useState(false)
-  const setEditingTodo = useAppStore((state) => state.setEditingTodo)
-  const setAddTaskModalOpen = useAppStore((state) => state.setAddTaskModalOpen)
+  const { setEditingTodo, setAddTaskModalOpen } = useAppStore()
 
   const handleComplete = async (checked: boolean) => {
     if (checked) {
       setIsCompleting(true)
       startTransition(async () => {
         await completeTodo(todo.id)
-        // Small delay before hiding to let animation play
-        setTimeout(() => setIsCompleting(false), 100)
-      })
-    } else {
-      startTransition(async () => {
-        await uncompleteTodo(todo.id)
+        // Refresh the page data after completion animation
+        setTimeout(() => {
+          router.refresh()
+        }, 500)
       })
     }
   }
 
-  const handleEdit = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on checkbox area or subtasks toggle
+    const target = e.target as HTMLElement
+    if (target.closest('.checkbox-area') || target.closest('.subtasks-toggle')) {
+      return
+    }
+    
     setEditingTodo(todo)
     setAddTaskModalOpen(true)
-  }
-
-  const handleDelete = () => {
-    startTransition(async () => {
-      await deleteTodo(todo.id)
-    })
   }
 
   const hasChildren = todo.children && todo.children.length > 0
   const completedChildren = todo.children?.filter((c) => c.isCompleted).length ?? 0
   const totalChildren = todo.children?.length ?? 0
+
+  // Calculate time status
+  const timeStatus = todo.scheduledDate 
+    ? getTimeStatus(new Date(todo.scheduledDate), todo.duration)
+    : null
 
   return (
     <AnimatePresence mode="popLayout">
@@ -83,15 +120,16 @@ export function TaskCard({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+          onClick={handleCardClick}
           className={cn(
-            'task-card bg-card rounded-xl border p-4 relative group',
+            'task-card bg-card rounded-xl border p-4 relative cursor-pointer',
             compact && 'p-3',
             isPending && 'opacity-60'
           )}
         >
           <div className="flex gap-3">
             {/* Checkbox */}
-            <div className="pt-0.5">
+            <div className="pt-0.5 checkbox-area" onClick={(e) => e.stopPropagation()}>
               <TaskCheckbox
                 checked={todo.isCompleted}
                 onCheckedChange={handleComplete}
@@ -125,21 +163,10 @@ export function TaskCard({
                 </span>
               </div>
 
-              {/* Description (expandable) */}
+              {/* Description - always rendered as markdown */}
               {todo.description && !compact && (
-                <div className="mt-1">
-                  <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left"
-                  >
-                    {isExpanded ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown>{todo.description}</ReactMarkdown>
-                      </div>
-                    ) : (
-                      <span className="line-clamp-1">{todo.description}</span>
-                    )}
-                  </button>
+                <div className="mt-1 text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-2">
+                  <ReactMarkdown>{todo.description}</ReactMarkdown>
                 </div>
               )}
 
@@ -152,9 +179,16 @@ export function TaskCard({
                     <span>
                       {format(new Date(todo.scheduledDate), 'MMM d, h:mm a')}
                     </span>
-                    <span className="text-primary font-medium">
-                      · {formatTimeLeft(new Date(todo.scheduledDate))}
-                    </span>
+                    {/* Time status - only show when due or overdue */}
+                    {timeStatus && (
+                      <span className={cn(
+                        'font-medium',
+                        timeStatus.isOverdue && 'text-red-500',
+                        timeStatus.isDue && 'text-amber-500'
+                      )}>
+                        · {timeStatus.label}
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -163,6 +197,14 @@ export function TaskCard({
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
                     <span>{formatDuration(todo.duration)}</span>
+                  </div>
+                )}
+
+                {/* Recurring indicator */}
+                {todo.isRecurring && (
+                  <div className="flex items-center gap-1 text-primary">
+                    <Repeat className="w-3.5 h-3.5" />
+                    <span>Repeating</span>
                   </div>
                 )}
 
@@ -201,12 +243,22 @@ export function TaskCard({
 
                 {/* Subtasks count */}
                 {hasChildren && (
-                  <div className="flex items-center gap-1">
-                    <ChevronRight className="w-3.5 h-3.5" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsExpanded(!isExpanded)
+                    }}
+                    className="subtasks-toggle flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
                     <span>
                       {completedChildren}/{totalChildren} subtasks
                     </span>
-                  </div>
+                  </button>
                 )}
               </div>
 
@@ -225,41 +277,7 @@ export function TaskCard({
                 </div>
               )}
             </div>
-
-            {/* Actions */}
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleEdit}>
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </div>
-
-          {/* Expand toggle for subtasks */}
-          {hasChildren && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="absolute bottom-2 right-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isExpanded ? 'Hide subtasks' : 'Show subtasks'}
-            </button>
-          )}
         </motion.div>
       )}
     </AnimatePresence>

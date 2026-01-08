@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, ChevronDown, Loader2 } from 'lucide-react'
+import { FolderOpen, Loader2, Pencil } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { updateTodo } from '@/lib/actions/todos'
 import { getAreas } from '@/lib/actions/areas'
+import { useAppStore } from '@/lib/store'
 import type { TodoWithRelations } from '@/lib/types'
 
 interface SortTaskListProps {
@@ -29,6 +30,7 @@ export function SortTaskList({ initialTodos, totalCount }: SortTaskListProps) {
   const [sortingTodoId, setSortingTodoId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [sortedCount, setSortedCount] = useState(0)
+  const { setEditingTodo, setAddTaskModalOpen } = useAppStore()
 
   // Load areas on first interaction
   const loadAreas = async () => {
@@ -63,6 +65,11 @@ export function SortTaskList({ initialTodos, totalCount }: SortTaskListProps) {
         setSortingTodoId(null)
       }
     })
+  }
+
+  const handleEditClick = (todo: TodoWithRelations) => {
+    setEditingTodo(todo)
+    setAddTaskModalOpen(true)
   }
 
   const loadMore = () => {
@@ -114,14 +121,26 @@ export function SortTaskList({ initialTodos, totalCount }: SortTaskListProps) {
                 </div>
               </div>
 
-              {/* Area Selector */}
-              <div className="shrink-0">
+              {/* Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Edit button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEditClick(todo)}
+                  className="h-9 w-9"
+                  title="Edit task"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+
+                {/* Area Selector */}
                 <Select
                   onOpenChange={(open) => open && loadAreas()}
                   onValueChange={(value) => handleAreaSelect(todo.id, value)}
                   disabled={sortingTodoId === todo.id}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[160px]">
                     {sortingTodoId === todo.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (

@@ -19,7 +19,7 @@ interface MobileNavProps {
 
 export function MobileNav({ unsortedCount }: MobileNavProps) {
   const pathname = usePathname()
-  const setAddTaskModalOpen = useAppStore((state) => state.setAddTaskModalOpen)
+  const { setAddTaskModalOpen, setEditingTodo } = useAppStore()
 
   const links = [
     { href: '/', label: 'Today', icon: Calendar },
@@ -58,7 +58,10 @@ export function MobileNav({ unsortedCount }: MobileNavProps) {
 
         {/* Center Add Button */}
         <button
-          onClick={() => setAddTaskModalOpen(true)}
+          onClick={() => {
+            setEditingTodo(null)
+            setAddTaskModalOpen(true)
+          }}
           className="flex flex-col items-center gap-1 px-3 py-2 -mt-4"
         >
           <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg">

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { format } from 'date-fns'
-import { CalendarIcon, Clock, Plus, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { format, startOfDay, isBefore } from 'date-fns'
+import { CalendarIcon, Clock, Trash2 } from 'lucide-react'
 import { DayPicker } from 'react-day-picker'
 import 'react-day-picker/dist/style.css'
 import { Button } from './ui/button'
@@ -24,7 +25,7 @@ import {
 } from './ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { cn } from '@/lib/utils'
-import { createTodo, updateTodo, getTodayTaskCounts } from '@/lib/actions/todos'
+import { createTodo, updateTodo, deleteTodo, getTodayTaskCounts } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
 import type { CreateTodoInput } from '@/lib/types'
 
@@ -35,6 +36,7 @@ interface AddTaskModalProps {
 }
 
 export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { isAddTaskModalOpen, setAddTaskModalOpen, editingTodo, setEditingTodo } =
     useAppStore()
@@ -49,6 +51,12 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const [duration, setDuration] = useState('')
   const [showLimitWarning, setShowLimitWarning] = useState(false)
   const [limitWarningMessage, setLimitWarningMessage] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [recurringInterval, setRecurringInterval] = useState('1')
+
+  const isEditing = !!editingTodo
 
   // Populate form when editing
   useEffect(() => {
@@ -62,19 +70,43 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
         const date = new Date(editingTodo.scheduledDate)
         setScheduledDate(date)
         setScheduledTime(format(date, 'HH:mm'))
+      } else {
+        setScheduledDate(undefined)
+        setScheduledTime('')
       }
       if (editingTodo.duration) {
         setDuration(String(editingTodo.duration))
+      } else {
+        setDuration('')
       }
+      // Handle recurring fields
+      setIsRecurring(editingTodo.isRecurring || false)
+      if (editingTodo.recurringPattern) {
+        try {
+          const pattern = JSON.parse(editingTodo.recurringPattern as string)
+          setRecurringFrequency(pattern.frequency || 'weekly')
+          setRecurringInterval(String(pattern.interval || 1))
+        } catch {
+          setRecurringFrequency('weekly')
+          setRecurringInterval('1')
+        }
+      }
+    } else {
+      // Reset form for new task
+      resetForm()
     }
   }, [editingTodo])
 
-  // Reset form when closing
-  const handleClose = () => {
-    setAddTaskModalOpen(false)
-    setEditingTodo(null)
-    resetForm()
-  }
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isAddTaskModalOpen) {
+      // Small delay to let close animation finish
+      setTimeout(() => {
+        setEditingTodo(null)
+        resetForm()
+      }, 200)
+    }
+  }, [isAddTaskModalOpen, setEditingTodo])
 
   const resetForm = () => {
     setTitle('')
@@ -86,10 +118,21 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
     setScheduledTime('')
     setDuration('')
     setShowLimitWarning(false)
+    setShowDeleteConfirm(false)
+    setIsRecurring(false)
+    setRecurringFrequency('weekly')
+    setRecurringInterval('1')
   }
 
-  // Check limits before saving
+  const handleClose = () => {
+    setAddTaskModalOpen(false)
+  }
+
+  // Check limits before saving - only for new tasks, not edits
   const checkLimits = async () => {
+    // Skip limit check when editing
+    if (isEditing) return true
+    
     if (!scheduledDate) return true
 
     const counts = await getTodayTaskCounts()
@@ -141,8 +184,8 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const handleSubmit = async (overrideLimit = false) => {
     if (!title.trim()) return
 
-    // Check limits (skip if overriding)
-    if (!overrideLimit && !showLimitWarning) {
+    // Check limits (skip if overriding or editing)
+    if (!overrideLimit && !showLimitWarning && !isEditing) {
       const withinLimits = await checkLimits()
       if (!withinLimits) {
         setShowLimitWarning(true)
@@ -168,15 +211,32 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
       scheduledDate: finalScheduledDate,
       duration: duration ? parseInt(duration) : undefined,
       parentId: parentId || undefined,
+      isRecurring,
+      recurringPattern: isRecurring ? {
+        frequency: recurringFrequency,
+        interval: parseInt(recurringInterval) || 1,
+        time: scheduledTime || undefined,
+      } : undefined,
     }
 
     startTransition(async () => {
-      if (editingTodo) {
+      if (isEditing && editingTodo) {
         await updateTodo({ id: editingTodo.id, ...data })
       } else {
         await createTodo(data)
       }
       handleClose()
+      router.refresh()
+    })
+  }
+
+  const handleDelete = () => {
+    if (!editingTodo) return
+    
+    startTransition(async () => {
+      await deleteTodo(editingTodo.id)
+      handleClose()
+      router.refresh()
     })
   }
 
@@ -186,16 +246,50 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
     )
   }
 
+  // Disable past dates
+  const disabledDays = { before: startOfDay(new Date()) }
+
+  // Validate that selected date isn't in the past
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date && isBefore(startOfDay(date), startOfDay(new Date()))) {
+      return // Don't allow past dates
+    }
+    setScheduledDate(date)
+  }
+
   return (
     <Dialog open={isAddTaskModalOpen} onOpenChange={setAddTaskModalOpen}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {editingTodo ? 'Edit Task' : 'Add New Task'}
+            {isEditing ? 'Edit Task' : 'Add New Task'}
           </DialogTitle>
         </DialogHeader>
 
-        {showLimitWarning ? (
+        {showDeleteConfirm ? (
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                Are you sure you want to delete "{editingTodo?.title}"? This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={isPending}
+              >
+                {isPending ? 'Deleting...' : 'Delete Task'}
+              </Button>
+            </div>
+          </div>
+        ) : showLimitWarning ? (
           <div className="space-y-4">
             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <p className="text-sm text-amber-800 dark:text-amber-200">
@@ -361,7 +455,8 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                     <DayPicker
                       mode="single"
                       selected={scheduledDate}
-                      onSelect={setScheduledDate}
+                      onSelect={handleDateSelect}
+                      disabled={disabledDays}
                       initialFocus
                     />
                   </PopoverContent>
@@ -398,14 +493,70 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
               </div>
             </div>
 
+            {/* Recurring Task */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isRecurring"
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  className="rounded border-input"
+                />
+                <Label htmlFor="isRecurring" className="cursor-pointer">
+                  Repeat this task
+                </Label>
+              </div>
+              
+              {isRecurring && (
+                <div className="flex items-center gap-2 pl-6">
+                  <span className="text-sm text-muted-foreground">Every</span>
+                  <Input
+                    type="number"
+                    value={recurringInterval}
+                    onChange={(e) => setRecurringInterval(e.target.value)}
+                    min="1"
+                    max="30"
+                    className="w-16"
+                  />
+                  <Select value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as 'daily' | 'weekly' | 'monthly')}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">day(s)</SelectItem>
+                      <SelectItem value="weekly">week(s)</SelectItem>
+                      <SelectItem value="monthly">month(s)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
             {/* Actions */}
-            <div className="flex gap-2 justify-end pt-4">
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button onClick={() => handleSubmit()} disabled={isPending || !title.trim()}>
-                {isPending ? 'Saving...' : editingTodo ? 'Save Changes' : 'Add Task'}
-              </Button>
+            <div className="flex gap-2 justify-between pt-4">
+              {/* Delete button - only show when editing */}
+              <div>
+                {isEditing && (
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button onClick={() => handleSubmit()} disabled={isPending || !title.trim()}>
+                  {isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Task'}
+                </Button>
+              </div>
             </div>
           </div>
         )}

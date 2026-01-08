@@ -27,7 +27,7 @@ interface NavigationProps {
 
 export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
   const pathname = usePathname()
-  const setAddTaskModalOpen = useAppStore((state) => state.setAddTaskModalOpen)
+  const { setAddTaskModalOpen, setEditingTodo } = useAppStore()
 
   const mainLinks = [
     { href: '/', label: 'Today', icon: Calendar },
@@ -55,7 +55,10 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
       {/* Add Task Button */}
       <div className="p-4">
         <Button
-          onClick={() => setAddTaskModalOpen(true)}
+          onClick={() => {
+            setEditingTodo(null)
+            setAddTaskModalOpen(true)
+          }}
           className="w-full gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -97,9 +100,12 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
       {/* Areas */}
       <div className="px-2 py-2">
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <Link
+            href="/areas"
+            className="text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+          >
             Areas
-          </span>
+          </Link>
           <Link
             href="/areas"
             className="text-muted-foreground hover:text-foreground"
@@ -138,9 +144,12 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
       {/* Tags */}
       <div className="px-2 py-2 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <Link
+            href="/tags"
+            className="text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+          >
             Tags
-          </span>
+          </Link>
           <Link
             href="/tags"
             className="text-muted-foreground hover:text-foreground"

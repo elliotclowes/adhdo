@@ -26,15 +26,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     createUser: async ({ user }) => {
-      // Create default "Inbox" area for new users
+      // Create default areas for new users
       if (user.id) {
-        await prisma.area.create({
-          data: {
-            name: 'Inbox',
-            color: '#6366f1',
-            userId: user.id,
-            order: 0,
-          },
+        await prisma.area.createMany({
+          data: [
+            {
+              name: 'Must-dos',
+              color: '#ef4444', // red
+              userId: user.id,
+              order: 0,
+            },
+            {
+              name: 'Like-to-dos',
+              color: '#6366f1', // indigo
+              userId: user.id,
+              order: 1,
+            },
+            {
+              name: 'Someday',
+              color: '#94a3b8', // slate
+              userId: user.id,
+              order: 2,
+            },
+          ],
         })
       }
     },

@@ -1,12 +1,41 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { updateUserSettings } from '@/lib/actions/user'
 import type { UserPreferences } from '@/lib/types'
+
+// Common timezones
+const TIMEZONES = [
+  'UTC',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'Asia/Tokyo',
+  'Asia/Shanghai',
+  'Asia/Singapore',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Australia/Sydney',
+  'Australia/Melbourne',
+  'Pacific/Auckland',
+]
 
 interface SettingsFormProps {
   settings: UserPreferences | null
@@ -34,6 +63,23 @@ export function SettingsForm({ settings }: SettingsFormProps) {
   const [dailySummaryTime, setDailySummaryTime] = useState(
     settings?.dailySummaryTime || '07:00'
   )
+  const [timezone, setTimezone] = useState(
+    settings?.timezone || 'Europe/London'
+  )
+
+  // Auto-detect timezone on mount if not set
+  useEffect(() => {
+    if (!settings?.timezone) {
+      const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (detectedTimezone) {
+        setTimezone(detectedTimezone)
+        // Auto-save the detected timezone
+        startTransition(async () => {
+          await updateUserSettings({ timezone: detectedTimezone })
+        })
+      }
+    }
+  }, [settings?.timezone])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,11 +92,17 @@ export function SettingsForm({ settings }: SettingsFormProps) {
         notImportantTaskLimit: notImportantTaskLimit ? parseInt(notImportantTaskLimit) : null,
         somedayTaskLimit: somedayTaskLimit ? parseInt(somedayTaskLimit) : null,
         dailySummaryTime,
+        timezone,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     })
   }
+
+  // Get current detected timezone
+  const detectedTimezone = typeof window !== 'undefined' 
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone 
+    : 'UTC'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -151,6 +203,32 @@ export function SettingsForm({ settings }: SettingsFormProps) {
         </div>
       </div>
 
+      {/* Timezone */}
+      <div className="space-y-2">
+        <Label htmlFor="timezone">Timezone</Label>
+        <Select value={timezone} onValueChange={setTimezone}>
+          <SelectTrigger className="w-64">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Show detected timezone first if not in list */}
+            {!TIMEZONES.includes(detectedTimezone) && (
+              <SelectItem value={detectedTimezone}>
+                {detectedTimezone} (detected)
+              </SelectItem>
+            )}
+            {TIMEZONES.map((tz) => (
+              <SelectItem key={tz} value={tz}>
+                {tz} {tz === detectedTimezone ? '(detected)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Your timezone was auto-detected as {detectedTimezone}. Change it here if needed.
+        </p>
+      </div>
+
       {/* Daily Summary Time */}
       <div className="space-y-2">
         <Label htmlFor="summaryTime">Daily summary email time</Label>
@@ -162,7 +240,7 @@ export function SettingsForm({ settings }: SettingsFormProps) {
           className="w-32"
         />
         <p className="text-xs text-muted-foreground">
-          When to receive your daily task summary email
+          When to receive your daily task summary email (in your timezone)
         </p>
       </div>
 
