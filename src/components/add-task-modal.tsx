@@ -56,7 +56,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const { isAddTaskModalOpen, setAddTaskModalOpen, editingTodo, setEditingTodo } =
     useAppStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const saveButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle] = useState('')
@@ -128,9 +128,9 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
         }
       }
       setIsEditingDescription(false)
-      // Focus save button when editing (with delay to let modal open)
+      // Focus close button when editing (keeps view at top, no keyboard on mobile)
       setTimeout(() => {
-        saveButtonRef.current?.focus()
+        closeButtonRef.current?.focus()
       }, 100)
     } else {
       // Reset form for new task
@@ -399,6 +399,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   />
                 </div>
                 <button
+                  ref={closeButtonRef}
                   onClick={handleClose}
                   className="p-1 hover:bg-muted rounded-md text-muted-foreground"
                 >
@@ -693,7 +694,6 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
               {/* Actions */}
               <div className="space-y-2">
                 <Button 
-                  ref={saveButtonRef}
                   onClick={() => handleSubmit()} 
                   disabled={isPending || !title.trim()}
                   className="w-full"

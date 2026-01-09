@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { redirect } from 'next/navigation'
+import NextTopLoader from 'nextjs-toploader'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Navigation } from '@/components/navigation'
@@ -100,6 +101,11 @@ export default async function RootLayout({
     return (
       <html lang="en">
         <body className="min-h-screen bg-background antialiased">
+          <NextTopLoader 
+            color="#6366f1"
+            height={3}
+            showSpinner={false}
+          />
           <Providers>
             {children}
           </Providers>
@@ -113,6 +119,11 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background antialiased">
+        <NextTopLoader 
+          color="#6366f1"
+          height={3}
+          showSpinner={false}
+        />
         <div className="flex h-screen">
           {/* Desktop Navigation */}
           <div className="hidden md:block">
