@@ -79,7 +79,22 @@ function SortTaskCard({
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const { setEditingTodo, setAddTaskModalOpen } = useAppStore()
 
-  // Load date counts when calendar opens
+  // Pre-load task counts for today and tomorrow on mount
+  useEffect(() => {
+    const loadInitialCounts = async () => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dayAfterTomorrow = addDays(today, 2)
+      dayAfterTomorrow.setHours(23, 59, 59, 999)
+      
+      const result = await getTaskCountsByDate(today, dayAfterTomorrow)
+      setDateCounts(result.countsByDate)
+      setDailyLimit(result.dailyLimit)
+    }
+    loadInitialCounts()
+  }, [])
+
+  // Load full calendar counts when calendar opens
   useEffect(() => {
     if (showScheduleDialog) {
       const loadCounts = async () => {
