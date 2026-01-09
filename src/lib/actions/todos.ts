@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import type { CreateTodoInput, UpdateTodoInput, RecurringPattern } from '@/lib/types'
+import type { CreateTodoInput, UpdateTodoInput, RecurringPattern, TodoWithRelations } from '@/lib/types'
 
 export async function createTodo(input: CreateTodoInput) {
   const session = await auth()
@@ -375,7 +375,7 @@ export async function getUnsortedTodos(limit: number = 5) {
 }
 
 // Get random todos for Zombie mode
-export async function getZombieTodos(count: number = 5) {
+export async function getZombieTodos(count: number = 5): Promise<TodoWithRelations[]> {
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
@@ -398,7 +398,7 @@ export async function getZombieTodos(count: number = 5) {
   })
 
   // Shuffle and weight by due date proximity
-  const weighted = todos.map((todo) => {
+  const weighted = todos.map((todo: TodoWithRelations) => {
     let weight = 1
     if (todo.scheduledDate) {
       const daysUntilDue = Math.ceil(
@@ -473,9 +473,9 @@ export async function getTodayTaskCounts() {
     _count: true,
   })
 
-  const totalCount = counts.reduce((sum, c) => sum + c._count, 0)
+  const totalCount = counts.reduce((sum: number, c: { priority: number; _count: number }) => sum + c._count, 0)
   const byPriority = Object.fromEntries(
-    counts.map((c) => [c.priority, c._count])
+    counts.map((c: { priority: number; _count: number }) => [c.priority, c._count])
   )
 
   return {

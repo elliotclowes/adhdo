@@ -5,13 +5,20 @@ import { auth } from '@/lib/auth'
 import { getTags } from '@/lib/actions/tags'
 import { CreateTagDialog } from '@/components/create-tag-dialog'
 
+type TagWithCount = {
+  id: string
+  name: string
+  color: string
+  _count: { todos: number }
+}
+
 export default async function TagsPage() {
   const session = await auth()
   if (!session?.user?.id) {
     redirect('/login')
   }
 
-  const tags = await getTags()
+  const tags = await getTags() as TagWithCount[]
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

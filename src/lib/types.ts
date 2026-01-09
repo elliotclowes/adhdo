@@ -1,4 +1,59 @@
-import type { Todo, Area, Tag, User } from '@prisma/client'
+// Base types (matching Prisma schema)
+export type Todo = {
+  id: string
+  title: string
+  description: string | null
+  priority: number
+  isCompleted: boolean
+  completedAt: Date | null
+  scheduledDate: Date | null
+  duration: number | null
+  order: number
+  isRecurring: boolean
+  recurringPattern: unknown
+  areaId: string | null
+  parentId: string | null
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type Area = {
+  id: string
+  name: string
+  color: string
+  icon: string | null
+  order: number
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type Tag = {
+  id: string
+  name: string
+  color: string
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type User = {
+  id: string
+  name: string | null
+  email: string | null
+  emailVerified: Date | null
+  image: string | null
+  dailyTaskLimit: number
+  vitalTaskLimit: number | null
+  importantTaskLimit: number | null
+  notImportantTaskLimit: number | null
+  somedayTaskLimit: number | null
+  dailySummaryTime: string
+  timezone: string
+  createdAt: Date
+  updatedAt: Date
+}
 
 // Extended types with relations
 export type TodoWithRelations = Todo & {

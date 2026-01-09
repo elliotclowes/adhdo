@@ -111,12 +111,17 @@ export async function sendDailySummary(userId: string) {
 
   const greeting = user.name ? `Hi ${user.name.split(' ')[0]}!` : 'Hi!'
 
-  const todoListHtml = (todos: typeof todayTodos) =>
+  type SimpleTodo = { 
+    title: string
+    scheduledDate: Date | null 
+  }
+
+  const todoListHtml = (todos: SimpleTodo[]) =>
     todos.length === 0
       ? '<p style="color: #94a3b8; font-style: italic;">None</p>'
       : `<ul style="list-style: none; padding: 0;">${todos
           .map(
-            (t) =>
+            (t: SimpleTodo) =>
               `<li style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                 <span style="font-weight: 500;">${t.title}</span>
                 ${t.scheduledDate ? `<span style="color: #64748b; font-size: 12px; margin-left: 8px;">${new Date(t.scheduledDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>` : ''}

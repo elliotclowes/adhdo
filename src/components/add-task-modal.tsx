@@ -532,11 +532,13 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                           ? 'ring-2 ring-offset-1'
                           : 'opacity-50 hover:opacity-100'
                       )}
-                      style={{
-                        backgroundColor: `${tag.color}20`,
-                        color: tag.color,
-                        ringColor: tag.color,
-                      }}
+                      style={
+                        {
+                          backgroundColor: `${tag.color}20`,
+                          color: tag.color,
+                          '--tw-ring-color': tag.color,
+                        } as React.CSSProperties
+                      }
                     >
                       {tag.name}
                     </button>

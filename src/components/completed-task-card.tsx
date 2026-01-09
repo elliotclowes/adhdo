@@ -7,12 +7,26 @@ import { motion } from 'framer-motion'
 import { cn, getPriorityClass, getPriorityLabel } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { uncompleteTodo, deleteTodo } from '@/lib/actions/todos'
-import type { Todo, Area, Tag } from '@prisma/client'
 
 interface CompletedTaskCardProps {
-  todo: Todo & {
-    area?: Area | null
-    tags?: { tag: Tag }[]
+  todo: {
+    id: string
+    title: string
+    description: string | null
+    priority: number
+    completedAt: Date | null
+    area?: {
+      id: string
+      name: string
+      color: string
+    } | null
+    tags?: { 
+      tag: {
+        id: string
+        name: string
+        color: string
+      } 
+    }[]
   }
 }
 

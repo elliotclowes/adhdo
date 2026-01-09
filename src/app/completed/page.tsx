@@ -5,6 +5,16 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { CompletedTaskCard } from '@/components/completed-task-card'
 
+type CompletedTodo = {
+  id: string
+  title: string
+  description: string | null
+  priority: number
+  completedAt: Date | null
+  area: { id: string; name: string; color: string } | null
+  tags: { tag: { id: string; name: string; color: string } }[]
+}
+
 async function getCompletedTodos(userId: string) {
   const todos = await prisma.todo.findMany({
     where: {
@@ -18,11 +28,11 @@ async function getCompletedTodos(userId: string) {
     },
     orderBy: { completedAt: 'desc' },
     take: 50,
-  })
+  }) as CompletedTodo[]
 
   // Group by completion date
-  const grouped: Record<string, typeof todos> = {}
-  todos.forEach((todo) => {
+  const grouped: Record<string, CompletedTodo[]> = {}
+  todos.forEach((todo: CompletedTodo) => {
     if (todo.completedAt) {
       const key = format(todo.completedAt, 'yyyy-MM-dd')
       if (!grouped[key]) grouped[key] = []

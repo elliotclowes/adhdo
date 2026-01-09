@@ -6,7 +6,11 @@ import { TaskCard } from '@/components/task-card'
 import { getGreeting } from '@/lib/utils'
 import type { TodoWithRelations } from '@/lib/types'
 
-async function getTodayData(userId: string) {
+async function getTodayData(userId: string): Promise<{
+  todayTodos: TodoWithRelations[]
+  overdueTodos: TodoWithRelations[]
+  user: { name: string | null; dailyTaskLimit: number } | null
+}> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
@@ -62,7 +66,11 @@ async function getTodayData(userId: string) {
     }),
   ])
 
-  return { todayTodos, overdueTodos, user }
+  return { 
+    todayTodos: todayTodos as TodoWithRelations[], 
+    overdueTodos: overdueTodos as TodoWithRelations[], 
+    user 
+  }
 }
 
 export default async function TodayPage() {

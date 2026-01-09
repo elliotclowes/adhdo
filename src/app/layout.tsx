@@ -22,7 +22,25 @@ export const viewport: Viewport = {
   themeColor: '#6366f1',
 }
 
-async function getNavigationData(userId: string) {
+type AreaWithCount = {
+  id: string
+  name: string
+  color: string
+  _count: { todos: number }
+}
+
+type TagWithCount = {
+  id: string
+  name: string
+  color: string
+  _count: { todos: number }
+}
+
+async function getNavigationData(userId: string): Promise<{
+  areas: AreaWithCount[]
+  tags: TagWithCount[]
+  unsortedCount: number
+}> {
   const [areas, tags, unsortedCount] = await Promise.all([
     prisma.area.findMany({
       where: { userId },
@@ -62,7 +80,11 @@ async function getNavigationData(userId: string) {
     }),
   ])
 
-  return { areas, tags, unsortedCount }
+  return { 
+    areas: areas as AreaWithCount[], 
+    tags: tags as TagWithCount[], 
+    unsortedCount 
+  }
 }
 
 export default async function RootLayout({

@@ -22,7 +22,7 @@ export default async function TagPage({ params }: TagPageProps) {
     notFound()
   }
 
-  const todos = tag.todos.map((t) => t.todo)
+  const todos: TodoWithRelations[] = tag.todos.map((t: { todo: TodoWithRelations }) => t.todo)
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     // Send summaries
     const results = await Promise.allSettled(
-      users.map((user) => sendDailySummary(user.id))
+      users.map((user: { id: string; email: string | null }) => sendDailySummary(user.id))
     )
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length

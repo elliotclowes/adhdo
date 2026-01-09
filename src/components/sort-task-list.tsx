@@ -54,7 +54,7 @@ export function SortTaskList({ initialTodos, totalCount }: SortTaskListProps) {
     setLoadingAreas(true)
     try {
       const fetchedAreas = await getAreas()
-      setAreas(fetchedAreas.map((a) => ({ id: a.id, name: a.name, color: a.color })))
+      setAreas(fetchedAreas.map((a: { id: string; name: string; color: string }) => ({ id: a.id, name: a.name, color: a.color })))
     } catch (error) {
       console.error('Failed to load areas:', error)
     } finally {

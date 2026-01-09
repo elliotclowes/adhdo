@@ -6,13 +6,22 @@ import { getAreas } from '@/lib/actions/areas'
 import { Button } from '@/components/ui/button'
 import { CreateAreaDialog } from '@/components/create-area-dialog'
 
+type AreaWithCount = {
+  id: string
+  name: string
+  color: string
+  icon: string | null
+  order: number
+  _count: { todos: number }
+}
+
 export default async function AreasPage() {
   const session = await auth()
   if (!session?.user?.id) {
     redirect('/login')
   }
 
-  const areas = await getAreas()
+  const areas = await getAreas() as AreaWithCount[]
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

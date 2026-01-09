@@ -23,11 +23,11 @@ export default async function AreaPage({ params }: AreaPageProps) {
   }
 
   // Split into planned (has date/time/duration) and non-planned
-  const plannedTodos = area.todos.filter(
-    (t) => t.scheduledDate && t.duration
+  const plannedTodos: TodoWithRelations[] = area.todos.filter(
+    (t: TodoWithRelations) => t.scheduledDate && t.duration
   )
-  const nonPlannedTodos = area.todos.filter(
-    (t) => !t.scheduledDate || !t.duration
+  const nonPlannedTodos: TodoWithRelations[] = area.todos.filter(
+    (t: TodoWithRelations) => !t.scheduledDate || !t.duration
   )
 
   return (
