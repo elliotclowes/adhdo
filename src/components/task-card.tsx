@@ -154,6 +154,21 @@ export function TaskCard({
 
             {/* Content */}
             <div className="flex-1 min-w-0">
+              {/* Parent info for sub-tasks */}
+              {todo.parent && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingTodo(todo.parent as TodoWithRelations)
+                    setAddTaskModalOpen(true)
+                  }}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
+                >
+                  <span>↳</span>
+                  <span className="truncate">{todo.parent.title}</span>
+                </button>
+              )}
+              
               {/* Title row */}
               <div className="flex items-start justify-between gap-2">
                 <h3

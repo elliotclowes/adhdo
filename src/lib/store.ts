@@ -9,6 +9,10 @@ interface AppState {
   editingTodo: TodoWithRelations | null
   setEditingTodo: (todo: TodoWithRelations | null) => void
   
+  // Modal navigation - track if we opened a sub-task from parent modal
+  parentTodoInModal: TodoWithRelations | null
+  setParentTodoInModal: (todo: TodoWithRelations | null) => void
+  
   scheduleView: ScheduleView
   setScheduleView: (view: ScheduleView) => void
   
@@ -38,6 +42,9 @@ export const useAppStore = create<AppState>((set) => ({
   
   editingTodo: null,
   setEditingTodo: (todo) => set({ editingTodo: todo }),
+  
+  parentTodoInModal: null,
+  setParentTodoInModal: (todo) => set({ parentTodoInModal: todo }),
   
   scheduleView: 'today',
   setScheduleView: (view) => set({ scheduleView: view }),

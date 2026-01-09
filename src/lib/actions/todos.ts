@@ -83,14 +83,37 @@ export async function updateTodo(input: UpdateTodoInput) {
 
   const userId = session.user.id
 
-  // Verify ownership
+  // Verify ownership and get current state
   const existing = await prisma.todo.findUnique({
     where: { id: input.id },
-    select: { userId: true },
+    select: { 
+      userId: true, 
+      areaId: true,
+      depth: true,
+    },
   })
 
   if (!existing || existing.userId !== userId) {
     throw new Error('Todo not found')
+  }
+
+  // If updating area on a parent task (depth 0), update matching children
+  if (input.areaId !== undefined && existing.depth === 0) {
+    const oldAreaId = existing.areaId
+    const newAreaId = input.areaId
+    
+    // Update children that have the same area as the old parent area
+    if (oldAreaId) {
+      await prisma.todo.updateMany({
+        where: {
+          parentId: input.id,
+          areaId: oldAreaId,
+        },
+        data: {
+          areaId: newAreaId,
+        },
+      })
+    }
   }
 
   // Handle tag updates separately
@@ -151,17 +174,25 @@ export async function completeTodo(id: string) {
 
   const userId = session.user.id
 
-  // Verify ownership
+  // Verify ownership and get full todo with children
   const existing = await prisma.todo.findUnique({
     where: { id },
-    select: { userId: true, isRecurring: true, recurringPattern: true },
+    include: {
+      children: {
+        include: {
+          tags: { include: { tag: true } },
+        },
+      },
+      tags: { include: { tag: true } },
+      area: true,
+    },
   })
 
   if (!existing || existing.userId !== userId) {
     throw new Error('Todo not found')
   }
 
-  // Complete the todo
+  // Complete the parent todo
   const todo = await prisma.todo.update({
     where: { id },
     data: {
@@ -170,24 +201,94 @@ export async function completeTodo(id: string) {
     },
   })
 
-  // If recurring, create next instance
+  // Complete all incomplete children (sub-tasks)
+  if (existing.children && existing.children.length > 0) {
+    await prisma.todo.updateMany({
+      where: {
+        parentId: id,
+        isCompleted: false,
+      },
+      data: {
+        isCompleted: true,
+        completedAt: new Date(),
+      },
+    })
+  }
+
+  // If recurring, create next instance with all children
   if (existing.isRecurring && existing.recurringPattern) {
-    const pattern = JSON.parse(existing.recurringPattern) as RecurringPattern
+    const pattern = JSON.parse(existing.recurringPattern as string) as RecurringPattern
     const nextDate = calculateNextOccurrence(new Date(), pattern)
     
     if (nextDate) {
-      await prisma.todo.create({
+      // Calculate date offset for children
+      const parentOldDate = existing.scheduledDate ? new Date(existing.scheduledDate) : null
+      const dateOffset = parentOldDate ? nextDate.getTime() - parentOldDate.getTime() : 0
+      
+      // Create next parent occurrence
+      const nextParent = await prisma.todo.create({
         data: {
-          ...todo,
-          id: undefined,
-          isCompleted: false,
-          completedAt: null,
+          userId: existing.userId,
+          title: existing.title,
+          description: existing.description,
+          priority: existing.priority,
           scheduledDate: nextDate,
+          duration: existing.duration,
+          areaId: existing.areaId,
+          isRecurring: existing.isRecurring,
+          recurringPattern: existing.recurringPattern as string,
           recurringParentId: id,
-          createdAt: undefined,
-          updatedAt: undefined,
+          parentId: null,
+          depth: 0,
+          order: existing.order,
         },
       })
+
+      // Recreate tags for parent
+      if (existing.tags && existing.tags.length > 0) {
+        await prisma.todoTag.createMany({
+          data: existing.tags.map((t: { tag: { id: string } }) => ({
+            todoId: nextParent.id,
+            tagId: t.tag.id,
+          })),
+        })
+      }
+
+      // Recreate all children with shifted dates
+      if (existing.children && existing.children.length > 0) {
+        for (const child of existing.children) {
+          const childNextDate = child.scheduledDate && dateOffset
+            ? new Date(new Date(child.scheduledDate).getTime() + dateOffset)
+            : child.scheduledDate
+
+          const nextChild = await prisma.todo.create({
+            data: {
+              userId: existing.userId,
+              title: child.title,
+              description: child.description,
+              priority: child.priority,
+              scheduledDate: childNextDate,
+              duration: child.duration,
+              areaId: child.areaId,
+              parentId: nextParent.id,
+              depth: 1,
+              order: child.order,
+              isRecurring: false, // Children don't repeat independently
+              recurringPattern: null,
+            },
+          })
+
+          // Recreate tags for child
+          if (child.tags && child.tags.length > 0) {
+            await prisma.todoTag.createMany({
+              data: child.tags.map((t: { tag: { id: string } }) => ({
+                todoId: nextChild.id,
+                tagId: t.tag.id,
+              })),
+            })
+          }
+        }
+      }
     }
   }
 
@@ -314,7 +415,6 @@ export async function getTodosForToday() {
     where: {
       userId,
       isCompleted: false,
-      parentId: null, // Only top-level todos
       scheduledDate: {
         gte: today,
         lt: tomorrow,
@@ -323,10 +423,13 @@ export async function getTodosForToday() {
     include: {
       area: true,
       tags: { include: { tag: true } },
+      parent: true, // Include parent info for sub-tasks
       children: {
+        where: { isCompleted: false },
         include: {
           children: true,
         },
+        orderBy: { order: 'asc' },
       },
     },
     orderBy: [
@@ -605,4 +708,37 @@ export async function getTaskCountsByDate(startDate: Date, endDate: Date) {
     countsByDate,
     dailyLimit: user?.dailyTaskLimit || 3,
   }
+}
+
+// Reorder sub-tasks
+export async function reorderSubtasks(parentId: string, subtaskIds: string[]) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized')
+  }
+
+  const userId = session.user.id
+
+  // Verify ownership of parent
+  const parent = await prisma.todo.findUnique({
+    where: { id: parentId },
+    select: { userId: true },
+  })
+
+  if (!parent || parent.userId !== userId) {
+    throw new Error('Parent todo not found')
+  }
+
+  // Update order for each subtask
+  await Promise.all(
+    subtaskIds.map((id, index) =>
+      prisma.todo.update({
+        where: { id },
+        data: { order: index },
+      })
+    )
+  )
+
+  revalidatePath('/')
+  return { success: true }
 }
