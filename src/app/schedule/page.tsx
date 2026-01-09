@@ -78,7 +78,6 @@ async function getScheduleData(userId: string) {
     where: {
       userId,
       isCompleted: false,
-      parentId: null,
       OR: [
         // Regular scheduled tasks
         {
@@ -99,11 +98,14 @@ async function getScheduleData(userId: string) {
     include: {
       area: true,
       tags: { include: { tag: true } },
+      parent: true, // Include parent info for sub-tasks
       children: {
+        where: { isCompleted: false },
         include: {
           children: true,
           tags: { include: { tag: true } },
         },
+        orderBy: { order: 'asc' },
       },
     },
     orderBy: [{ scheduledDate: 'asc' }, { priority: 'asc' }],

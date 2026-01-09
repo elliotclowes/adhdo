@@ -3,10 +3,27 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, startOfDay, isBefore } from 'date-fns'
-import { CalendarIcon, Clock, Trash2, X } from 'lucide-react'
+import { CalendarIcon, Clock, Trash2, X, GripVertical, Plus } from 'lucide-react'
 import { DayPicker } from 'react-day-picker'
 import ReactMarkdown from 'react-markdown'
 import 'react-day-picker/dist/style.css'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -23,11 +40,11 @@ import {
 } from './ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { cn } from '@/lib/utils'
-import { createTodo, updateTodo, deleteTodo, completeTodo, getTodayTaskCounts } from '@/lib/actions/todos'
+import { createTodo, updateTodo, deleteTodo, completeTodo, getTodayTaskCounts, reorderSubtasks } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
 import { TaskCheckbox } from './task-checkbox'
 import { CompletionStar } from './completion-star'
-import type { CreateTodoInput } from '@/lib/types'
+import type { CreateTodoInput, TodoWithRelations } from '@/lib/types'
 
 interface AddTaskModalProps {
   areas: { id: string; name: string; color: string }[]
@@ -50,11 +67,82 @@ const MarkdownComponents = {
   ),
 }
 
+// Sortable sub-task item component
+function SortableSubtask({
+  subtask,
+  onEdit,
+  isMobile,
+}: {
+  subtask: TodoWithRelations
+  onEdit: () => void
+  isMobile: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: subtask.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+    >
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className={cn(
+          "text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0",
+          !isMobile && "opacity-0 group-hover:opacity-100 transition-opacity"
+        )}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+
+      {/* Sub-task content */}
+      <button
+        onClick={onEdit}
+        className="flex-1 text-left text-sm hover:text-primary transition-colors truncate"
+      >
+        {subtask.title}
+      </button>
+
+      {/* Priority indicator */}
+      <div
+        className={cn(
+          "w-2 h-2 rounded-full shrink-0",
+          subtask.priority === 1 && "bg-red-500",
+          subtask.priority === 2 && "bg-amber-500",
+          subtask.priority === 3 && "bg-indigo-500",
+          subtask.priority === 4 && "bg-slate-400"
+        )}
+      />
+    </div>
+  )
+}
+
 export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const { isAddTaskModalOpen, setAddTaskModalOpen, editingTodo, setEditingTodo } =
-    useAppStore()
+  const { 
+    isAddTaskModalOpen, 
+    setAddTaskModalOpen, 
+    editingTodo, 
+    setEditingTodo,
+    parentTodoInModal,
+    setParentTodoInModal,
+  } = useAppStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -75,8 +163,21 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
   const [recurringInterval, setRecurringInterval] = useState('1')
   const [showCompletionAnimation, setShowCompletionAnimation] = useState(false)
+  
+  // Sub-tasks state
+  const [subtasks, setSubtasks] = useState<TodoWithRelations[]>([])
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false)
 
   const isEditing = !!editingTodo
+
+  // Drag and drop sensors for sub-task reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Auto-resize textarea
   const adjustTextareaHeight = () => {
@@ -127,6 +228,13 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
           setRecurringInterval('1')
         }
       }
+      // Populate sub-tasks (sorted by order)
+      if (editingTodo.children && editingTodo.children.length > 0) {
+        const sortedChildren = [...editingTodo.children].sort((a, b) => a.order - b.order)
+        setSubtasks(sortedChildren)
+      } else {
+        setSubtasks([])
+      }
       setIsEditingDescription(false)
       // Focus close button when editing (keeps view at top, no keyboard on mobile)
       setTimeout(() => {
@@ -173,7 +281,14 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   }
 
   const handleClose = () => {
-    setAddTaskModalOpen(false)
+    // If we were viewing a sub-task from parent modal, return to parent
+    if (parentTodoInModal) {
+      setEditingTodo(parentTodoInModal)
+      setParentTodoInModal(null)
+    } else {
+      setAddTaskModalOpen(false)
+      setEditingTodo(null)
+    }
   }
 
   // Handle task completion
@@ -186,6 +301,66 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
           handleClose()
           router.refresh()
         }, 600)
+      })
+    }
+  }
+
+  // Add new sub-task
+  const handleAddSubtask = async () => {
+    if (!newSubtaskTitle.trim() || !editingTodo) return
+    
+    setIsAddingSubtask(true)
+    startTransition(async () => {
+      try {
+        const newSubtask = await createTodo({
+          title: newSubtaskTitle.trim(),
+          priority: parseInt(priority),
+          areaId: areaId, // Inherit parent's area
+          parentId: editingTodo.id,
+        })
+        
+        // Add to local state
+        setSubtasks([...subtasks, newSubtask as TodoWithRelations])
+        setNewSubtaskTitle('')
+        router.refresh()
+      } catch (error) {
+        console.error('Failed to create sub-task:', error)
+      } finally {
+        setIsAddingSubtask(false)
+      }
+    })
+  }
+
+  // Open sub-task for editing
+  const handleEditSubtask = (subtask: TodoWithRelations) => {
+    // Store current parent in modal history
+    if (editingTodo) {
+      setParentTodoInModal(editingTodo)
+    }
+    // Open sub-task
+    setEditingTodo(subtask)
+  }
+
+  // Handle drag end for sub-task reordering
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    
+    if (over && active.id !== over.id && editingTodo) {
+      setSubtasks((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id)
+        const newIndex = items.findIndex((item) => item.id === over.id)
+        
+        const newOrder = arrayMove(items, oldIndex, newIndex)
+        
+        // Save new order to backend
+        startTransition(async () => {
+          await reorderSubtasks(
+            editingTodo.id,
+            newOrder.map((item) => item.id)
+          )
+        })
+        
+        return newOrder
       })
     }
   }
@@ -457,6 +632,63 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   </p>
                 )}
               </div>
+
+              {/* Sub-tasks section - only show when editing parent task */}
+              {isEditing && editingTodo && editingTodo.depth === 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Sub-tasks
+                  </Label>
+                  
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={subtasks.map((s) => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-1.5">
+                        {subtasks.map((subtask) => (
+                          <SortableSubtask
+                            key={subtask.id}
+                            subtask={subtask}
+                            onEdit={() => handleEditSubtask(subtask)}
+                            isMobile={typeof window !== 'undefined' && window.innerWidth < 768}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+
+                  {/* Quick add sub-task input */}
+                  <div className="flex gap-2 pt-2">
+                    <Input
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleAddSubtask()
+                        }
+                      }}
+                      placeholder="Add sub-task..."
+                      className="flex-1 text-sm"
+                      disabled={isAddingSubtask}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddSubtask}
+                      disabled={!newSubtaskTitle.trim() || isAddingSubtask}
+                      className="shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Settings */}

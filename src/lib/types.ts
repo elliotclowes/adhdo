@@ -13,6 +13,7 @@ export type Todo = {
   recurringPattern: unknown
   areaId: string | null
   parentId: string | null
+  depth: number
   userId: string
   createdAt: Date
   updatedAt: Date

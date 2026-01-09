@@ -562,18 +562,39 @@ export async function getZombieTodos(count: number = 5) {
 
   const userId = session.user.id
 
-  // Get eligible todos (not Vital, not completed)
-  const todos = await prisma.todo.findMany({
+  // Get eligible parent todos (not Vital, not completed)
+  const parentTodos = await prisma.todo.findMany({
     where: {
       userId,
       isCompleted: false,
       priority: { not: 1 }, // Skip Vital
       parentId: null,
+      depth: 0,
     },
     include: {
       area: true,
       tags: { include: { tag: true } },
+      children: {
+        where: { isCompleted: false },
+        orderBy: { order: 'asc' },
+        take: 1, // Only first incomplete sub-task
+        include: {
+          area: true,
+          tags: { include: { tag: true } },
+          parent: true,
+        },
+      },
     },
+  })
+
+  // For each parent with sub-tasks, use the first sub-task instead of parent
+  const todos = parentTodos.map((parent: { 
+    children?: { id: string; title: string; scheduledDate: Date | null; duration: number | null; priority: number; [key: string]: unknown }[] 
+  } & { [key: string]: unknown }) => {
+    if (parent.children && parent.children.length > 0) {
+      return parent.children[0] // Use first sub-task
+    }
+    return parent // Use parent if no sub-tasks
   })
 
   // Shuffle and weight by due date proximity

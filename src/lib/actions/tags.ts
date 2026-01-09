@@ -127,7 +127,6 @@ export async function getTagWithTodos(id: string) {
         where: {
           todo: {
             isCompleted: false,
-            parentId: null,
           },
         },
         include: {
@@ -135,10 +134,13 @@ export async function getTagWithTodos(id: string) {
             include: {
               area: true,
               tags: { include: { tag: true } },
+              parent: true, // Include parent info for sub-tasks
               children: {
+                where: { isCompleted: false },
                 include: {
                   children: true,
                 },
+                orderBy: { order: 'asc' },
               },
             },
           },

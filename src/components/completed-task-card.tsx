@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { cn, getPriorityClass, getPriorityLabel } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { uncompleteTodo, deleteTodo } from '@/lib/actions/todos'
+import { useAppStore } from '@/lib/store'
 
 interface CompletedTaskCardProps {
   todo: {
@@ -27,11 +28,16 @@ interface CompletedTaskCardProps {
         color: string
       } 
     }[]
+    parent?: {
+      id: string
+      title: string
+    } | null
   }
 }
 
 export function CompletedTaskCard({ todo }: CompletedTaskCardProps) {
   const [isPending, startTransition] = useTransition()
+  const { setEditingTodo, setAddTaskModalOpen } = useAppStore()
 
   const handleUncomplete = () => {
     startTransition(async () => {
@@ -71,6 +77,20 @@ export function CompletedTaskCard({ todo }: CompletedTaskCardProps) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
+        {/* Parent info for sub-tasks */}
+        {todo.parent && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              // Note: Can't edit completed parent, but showing the link for context
+            }}
+            className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5"
+          >
+            <span>↳</span>
+            <span className="truncate">{todo.parent.title}</span>
+          </button>
+        )}
+        
         <p className="text-sm text-muted-foreground line-through truncate">
           {todo.title}
         </p>

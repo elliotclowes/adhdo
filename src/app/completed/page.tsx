@@ -13,6 +13,7 @@ type CompletedTodo = {
   completedAt: Date | null
   area: { id: string; name: string; color: string } | null
   tags: { tag: { id: string; name: string; color: string } }[]
+  parent: { id: string; title: string } | null
 }
 
 async function getCompletedTodos(userId: string) {
@@ -20,11 +21,11 @@ async function getCompletedTodos(userId: string) {
     where: {
       userId,
       isCompleted: true,
-      parentId: null,
     },
     include: {
       area: true,
       tags: { include: { tag: true } },
+      parent: true, // Include parent info for sub-tasks
     },
     orderBy: { completedAt: 'desc' },
     take: 50,

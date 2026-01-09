@@ -144,14 +144,16 @@ export async function getAreaWithTodos(id: string) {
       todos: {
         where: {
           isCompleted: false,
-          parentId: null,
         },
         include: {
           tags: { include: { tag: true } },
+          parent: true, // Include parent info for sub-tasks
           children: {
+            where: { isCompleted: false },
             include: {
               children: true,
             },
+            orderBy: { order: 'asc' },
           },
         },
         orderBy: [
