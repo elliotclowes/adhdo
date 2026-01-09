@@ -33,20 +33,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             {
               name: 'Must-dos',
               color: '#ef4444', // red
+              icon: '🔥',
               userId: user.id,
               order: 0,
+              requiresScheduling: true,
             },
             {
               name: 'Like-to-dos',
               color: '#6366f1', // indigo
+              icon: '💜',
               userId: user.id,
               order: 1,
+              requiresScheduling: true,
             },
             {
               name: 'Someday',
               color: '#94a3b8', // slate
+              icon: '💭',
               userId: user.id,
               order: 2,
+              requiresScheduling: false, // Someday tasks don't need scheduling
             },
           ],
         })

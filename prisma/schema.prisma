@@ -71,13 +71,14 @@ model User {
 }
 
 model Area {
-  id        String   @id @default(cuid())
-  name      String
-  color     String   @default("#6366f1") // Default indigo
-  icon      String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  color              String   @default("#6366f1") // Default indigo
+  icon               String?  // Emoji icon
+  order              Int      @default(0)
+  requiresScheduling Boolean  @default(true) // Tasks in this area need date/time
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

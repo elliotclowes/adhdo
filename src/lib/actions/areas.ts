@@ -24,8 +24,9 @@ export async function createArea(input: CreateAreaInput) {
     data: {
       name: input.name,
       color: input.color ?? '#6366f1',
-      icon: input.icon,
+      icon: input.icon ?? '📁',
       order: (maxOrderArea?.order ?? 0) + 1,
+      requiresScheduling: input.requiresScheduling ?? true,
       userId,
     },
   })
@@ -60,6 +61,7 @@ export async function updateArea(id: string, input: Partial<CreateAreaInput>) {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.color !== undefined && { color: input.color }),
       ...(input.icon !== undefined && { icon: input.icon }),
+      ...(input.requiresScheduling !== undefined && { requiresScheduling: input.requiresScheduling }),
     },
   })
 

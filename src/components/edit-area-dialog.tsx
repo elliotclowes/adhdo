@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, useTransition, useEffect } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,9 +10,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
-import { createArea } from '@/lib/actions/areas'
+import { updateArea, deleteArea } from '@/lib/actions/areas'
+import { useRouter } from 'next/navigation'
 
 const COLORS = [
   '#ef4444', // red
@@ -37,58 +37,112 @@ const EMOJIS = [
   '🔔', '📅', '🗂️', '📌', '🎓', '💻', '📱', '🏡',
 ]
 
-export function CreateAreaDialog() {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [color, setColor] = useState('#6366f1')
-  const [icon, setIcon] = useState('📁')
-  const [requiresScheduling, setRequiresScheduling] = useState(true)
+interface EditAreaDialogProps {
+  area: {
+    id: string
+    name: string
+    color: string
+    icon: string | null
+    requiresScheduling: boolean
+  }
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function EditAreaDialog({ area, open, onOpenChange }: EditAreaDialogProps) {
+  const router = useRouter()
+  const [name, setName] = useState(area.name)
+  const [color, setColor] = useState(area.color)
+  const [icon, setIcon] = useState(area.icon || '📁')
+  const [requiresScheduling, setRequiresScheduling] = useState(area.requiresScheduling)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // Reset form when area changes
+  useEffect(() => {
+    setName(area.name)
+    setColor(area.color)
+    setIcon(area.icon || '📁')
+    setRequiresScheduling(area.requiresScheduling)
+    setShowDeleteConfirm(false)
+  }, [area])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
     startTransition(async () => {
-      await createArea({ 
+      await updateArea(area.id, { 
         name: name.trim(), 
         color, 
         icon,
         requiresScheduling 
       })
-      setName('')
-      setColor('#6366f1')
-      setIcon('📁')
-      setRequiresScheduling(true)
-      setOpen(false)
+      onOpenChange(false)
     })
   }
 
+  const handleDelete = () => {
+    startTransition(async () => {
+      await deleteArea(area.id)
+      onOpenChange(false)
+      router.push('/areas')
+    })
+  }
+
+  if (showDeleteConfirm) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Area</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                Are you sure you want to delete &quot;{area.name}&quot;? Tasks in this area will become unassigned.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={isPending}
+              >
+                {isPending ? 'Deleting...' : 'Delete Area'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          New Area
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Area</DialogTitle>
+          <DialogTitle>Edit Area</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Icon and Name */}
           <div className="space-y-2">
-            <Label htmlFor="areaName">Name</Label>
+            <Label htmlFor="editAreaName">Name</Label>
             <div className="flex gap-2">
               <div className="text-2xl w-10 h-10 flex items-center justify-center bg-muted rounded-lg">
                 {icon}
               </div>
               <Input
-                id="areaName"
+                id="editAreaName"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Work, Personal, Health..."
+                placeholder="Area name..."
                 className="flex-1"
                 autoFocus
               />
@@ -157,17 +211,28 @@ export function CreateAreaDialog() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-between pt-4">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              Cancel
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
             </Button>
-            <Button type="submit" disabled={isPending || !name.trim()}>
-              {isPending ? 'Creating...' : 'Create Area'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending || !name.trim()}>
+                {isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

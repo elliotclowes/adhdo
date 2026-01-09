@@ -348,30 +348,106 @@ export async function getUnsortedTodos(limit: number = 5) {
 
   const userId = session.user.id
 
-  const todos = await prisma.todo.findMany({
+  // Get areas that require scheduling
+  const areasWithScheduling = await prisma.area.findMany({
+    where: { userId, requiresScheduling: true },
+    select: { id: true },
+  })
+  const schedulingRequiredAreaIds = areasWithScheduling.map((a: { id: string }) => a.id)
+
+  // Category 1: No area AND no scheduled date
+  const needsAreaAndDateTime = await prisma.todo.findMany({
     where: {
       userId,
       isCompleted: false,
+      parentId: null,
       areaId: null,
-      parentId: null, // Only top-level todos
+      scheduledDate: null,
     },
     include: {
+      area: true,
       tags: { include: { tag: true } },
     },
     orderBy: { createdAt: 'asc' },
     take: limit,
   })
 
-  const totalCount = await prisma.todo.count({
+  // Category 2: Has area (with requiresScheduling=true) but no scheduled date
+  const needsDateTime = await prisma.todo.findMany({
     where: {
       userId,
       isCompleted: false,
-      areaId: null,
       parentId: null,
+      areaId: { in: schedulingRequiredAreaIds },
+      scheduledDate: null,
     },
+    include: {
+      area: true,
+      tags: { include: { tag: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
   })
 
-  return { todos, totalCount }
+  // Category 3: Has scheduled date but no area
+  const needsArea = await prisma.todo.findMany({
+    where: {
+      userId,
+      isCompleted: false,
+      parentId: null,
+      areaId: null,
+      scheduledDate: { not: null },
+    },
+    include: {
+      area: true,
+      tags: { include: { tag: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+
+  // Count totals for each category
+  const [needsAreaAndDateTimeCount, needsDateTimeCount, needsAreaCount] = await Promise.all([
+    prisma.todo.count({
+      where: {
+        userId,
+        isCompleted: false,
+        parentId: null,
+        areaId: null,
+        scheduledDate: null,
+      },
+    }),
+    prisma.todo.count({
+      where: {
+        userId,
+        isCompleted: false,
+        parentId: null,
+        areaId: { in: schedulingRequiredAreaIds },
+        scheduledDate: null,
+      },
+    }),
+    prisma.todo.count({
+      where: {
+        userId,
+        isCompleted: false,
+        parentId: null,
+        areaId: null,
+        scheduledDate: { not: null },
+      },
+    }),
+  ])
+
+  const totalCount = needsAreaAndDateTimeCount + needsDateTimeCount + needsAreaCount
+
+  return { 
+    needsAreaAndDateTime,
+    needsDateTime,
+    needsArea,
+    needsAreaAndDateTimeCount,
+    needsDateTimeCount,
+    needsAreaCount,
+    totalCount,
+  }
 }
 
 // Get random todos for Zombie mode
@@ -483,5 +559,50 @@ export async function getTodayTaskCounts() {
     total: totalCount,
     byPriority,
     limits: user,
+  }
+}
+
+// Get task counts for each day in a date range (for calendar display)
+export async function getTaskCountsByDate(startDate: Date, endDate: Date) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized')
+  }
+
+  const userId = session.user.id
+
+  const tasks = await prisma.todo.findMany({
+    where: {
+      userId,
+      isCompleted: false,
+      parentId: null,
+      scheduledDate: {
+        gte: startDate,
+        lt: endDate,
+      },
+    },
+    select: {
+      scheduledDate: true,
+    },
+  })
+
+  // Group by date
+  const countsByDate: Record<string, number> = {}
+  for (const task of tasks) {
+    if (task.scheduledDate) {
+      const dateKey = task.scheduledDate.toISOString().split('T')[0]
+      countsByDate[dateKey] = (countsByDate[dateKey] || 0) + 1
+    }
+  }
+
+  // Get user's daily limit
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dailyTaskLimit: true },
+  })
+
+  return {
+    countsByDate,
+    dailyLimit: user?.dailyTaskLimit || 3,
   }
 }

@@ -6,9 +6,7 @@ import {
   Calendar,
   CalendarDays,
   CheckCircle2,
-  FolderOpen,
   Ghost,
-  Inbox,
   LayoutGrid,
   Plus,
   Settings,
@@ -20,7 +18,7 @@ import { Button } from './ui/button'
 import { useAppStore } from '@/lib/store'
 
 interface NavigationProps {
-  areas: { id: string; name: string; color: string; _count: { todos: number } }[]
+  areas: { id: string; name: string; color: string; icon: string | null; _count: { todos: number } }[]
   tags: { id: string; name: string; color: string; _count: { todos: number } }[]
   unsortedCount: number
 }
@@ -126,10 +124,7 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
             >
-              <FolderOpen
-                className="w-4 h-4"
-                style={{ color: area.color }}
-              />
+              <span className="w-4 text-center">{area.icon || '📁'}</span>
               <span className="flex-1 truncate">{area.name}</span>
               {area._count.todos > 0 && (
                 <span className="text-xs text-muted-foreground">

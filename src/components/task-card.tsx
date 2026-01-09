@@ -9,7 +9,6 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
-  FolderOpen,
   Repeat,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -228,7 +227,7 @@ export function TaskCard({
                 {/* Area */}
                 {showArea && todo.area && (
                   <div className="flex items-center gap-1">
-                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>{todo.area.icon || '📁'}</span>
                     <span style={{ color: todo.area.color }}>
                       {todo.area.name}
                     </span>

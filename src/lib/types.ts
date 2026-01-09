@@ -24,6 +24,7 @@ export type Area = {
   color: string
   icon: string | null
   order: number
+  requiresScheduling: boolean
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -94,6 +95,7 @@ export type CreateAreaInput = {
   name: string
   color?: string
   icon?: string
+  requiresScheduling?: boolean
 }
 
 export type CreateTagInput = {

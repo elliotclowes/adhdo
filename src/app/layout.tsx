@@ -28,6 +28,8 @@ type AreaWithCount = {
   id: string
   name: string
   color: string
+  icon: string | null
+  requiresScheduling: boolean
   _count: { todos: number }
 }
 
@@ -43,7 +45,7 @@ async function getNavigationData(userId: string): Promise<{
   tags: TagWithCount[]
   unsortedCount: number
 }> {
-  const [areas, tags, unsortedCount] = await Promise.all([
+  const [areas, tags] = await Promise.all([
     prisma.area.findMany({
       where: { userId },
       include: {
@@ -72,6 +74,17 @@ async function getNavigationData(userId: string): Promise<{
       },
       orderBy: { name: 'asc' },
     }),
+  ])
+
+  // Get areas that require scheduling
+  const schedulingRequiredAreaIds = areas
+    .filter((a: AreaWithCount) => a.requiresScheduling)
+    .map((a: AreaWithCount) => a.id)
+
+  // Count unsorted tasks:
+  // 1. Tasks with no area at all
+  // 2. Tasks in scheduling-required areas without a date/time
+  const [noAreaCount, needsSchedulingCount] = await Promise.all([
     prisma.todo.count({
       where: {
         userId,
@@ -80,7 +93,18 @@ async function getNavigationData(userId: string): Promise<{
         parentId: null,
       },
     }),
+    prisma.todo.count({
+      where: {
+        userId,
+        isCompleted: false,
+        parentId: null,
+        areaId: { in: schedulingRequiredAreaIds },
+        scheduledDate: null,
+      },
+    }),
   ])
+
+  const unsortedCount = noAreaCount + needsSchedulingCount
 
   return { 
     areas: areas as AreaWithCount[], 

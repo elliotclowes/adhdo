@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { FolderOpen, Plus, LayoutGrid } from 'lucide-react'
+import { LayoutGrid } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { getAreas } from '@/lib/actions/areas'
-import { Button } from '@/components/ui/button'
 import { CreateAreaDialog } from '@/components/create-area-dialog'
 
 type AreaWithCount = {
@@ -12,6 +11,7 @@ type AreaWithCount = {
   color: string
   icon: string | null
   order: number
+  requiresScheduling: boolean
   _count: { todos: number }
 }
 
@@ -50,21 +50,25 @@ export default async function AreasPage() {
             >
               <div className="flex items-start gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
                   style={{ backgroundColor: `${area.color}20` }}
                 >
-                  <FolderOpen
-                    className="w-5 h-5"
-                    style={{ color: area.color }}
-                  />
+                  {area.icon || '📁'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
                     {area.name}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {area._count.todos} {area._count.todos === 1 ? 'task' : 'tasks'}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-sm text-muted-foreground">
+                      {area._count.todos} {area._count.todos === 1 ? 'task' : 'tasks'}
+                    </p>
+                    {!area.requiresScheduling && (
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                        No scheduling required
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </Link>
@@ -72,7 +76,7 @@ export default async function AreasPage() {
         </div>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border">
-          <FolderOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <span className="text-4xl block mb-4">📁</span>
           <p className="text-muted-foreground">No areas yet</p>
           <p className="text-sm text-muted-foreground mt-1">
             Create areas to organize your tasks
