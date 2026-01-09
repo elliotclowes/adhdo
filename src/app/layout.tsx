@@ -6,6 +6,7 @@ import { Navigation } from '@/components/navigation'
 import { MobileNav } from '@/components/mobile-nav'
 import { AddTaskModal } from '@/components/add-task-modal'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
+import { Providers } from '@/components/providers'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -99,7 +100,9 @@ export default async function RootLayout({
     return (
       <html lang="en">
         <body className="min-h-screen bg-background antialiased">
-          {children}
+          <Providers>
+            {children}
+          </Providers>
         </body>
       </html>
     )

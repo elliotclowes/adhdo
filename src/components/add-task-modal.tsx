@@ -56,6 +56,8 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const { isAddTaskModalOpen, setAddTaskModalOpen, editingTodo, setEditingTodo } =
     useAppStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -126,10 +128,18 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
         }
       }
       setIsEditingDescription(false)
+      // Focus save button when editing (with delay to let modal open)
+      setTimeout(() => {
+        saveButtonRef.current?.focus()
+      }, 100)
     } else {
       // Reset form for new task
       resetForm()
       setIsEditingDescription(true) // New tasks start in edit mode
+      // Focus title input when adding new task
+      setTimeout(() => {
+        titleInputRef.current?.focus()
+      }, 100)
     }
   }, [editingTodo])
 
@@ -381,11 +391,11 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                 )}
                 <div className="flex-1">
                   <input
+                    ref={titleInputRef}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Task title"
                     className="w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground"
-                    autoFocus={!isEditing}
                   />
                 </div>
                 <button
@@ -555,34 +565,54 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-xs">Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !scheduledDate && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                        {scheduledDate ? (
-                          format(scheduledDate, 'MMM d')
-                        ) : (
-                          <span>Pick date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <DayPicker
-                        mode="single"
-                        selected={scheduledDate}
-                        onSelect={handleDateSelect}
-                        disabled={disabledDays}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  {/* Native date input for mobile, Popover for desktop */}
+                  <div className="relative">
+                    {/* Native input for mobile - hidden but functional */}
+                    <input
+                      type="date"
+                      value={scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const date = new Date(e.target.value + 'T00:00:00')
+                          handleDateSelect(date)
+                        } else {
+                          setScheduledDate(undefined)
+                        }
+                      }}
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      className="md:hidden absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    />
+                    {/* Visual button that shows selected date */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          className={cn(
+                            'w-full justify-start text-left font-normal pointer-events-none md:pointer-events-auto',
+                            !scheduledDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                          {scheduledDate ? (
+                            format(scheduledDate, 'MMM d')
+                          ) : (
+                            <span>Pick date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 hidden md:block" align="start">
+                        <DayPicker
+                          mode="single"
+                          selected={scheduledDate}
+                          onSelect={handleDateSelect}
+                          disabled={disabledDays}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -663,6 +693,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
               {/* Actions */}
               <div className="space-y-2">
                 <Button 
+                  ref={saveButtonRef}
                   onClick={() => handleSubmit()} 
                   disabled={isPending || !title.trim()}
                   className="w-full"
