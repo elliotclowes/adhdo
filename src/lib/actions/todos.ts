@@ -375,7 +375,7 @@ export async function getUnsortedTodos(limit: number = 5) {
 }
 
 // Get random todos for Zombie mode
-export async function getZombieTodos(count: number = 5): Promise<TodoWithRelations[]> {
+export async function getZombieTodos(count: number = 5) {
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
@@ -398,7 +398,8 @@ export async function getZombieTodos(count: number = 5): Promise<TodoWithRelatio
   })
 
   // Shuffle and weight by due date proximity
-  const weighted = todos.map((todo: TodoWithRelations) => {
+  type TodoType = typeof todos[number]
+  const weighted = todos.map((todo: TodoType) => {
     let weight = 1
     if (todo.scheduledDate) {
       const daysUntilDue = Math.ceil(

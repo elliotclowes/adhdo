@@ -14,7 +14,7 @@ export default async function ZombiePage() {
     redirect('/login')
   }
 
-  const todos = await getZombieTodos(5)
+  const todos = await getZombieTodos(5) as TodoWithRelations[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
