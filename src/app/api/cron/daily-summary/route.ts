@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { sendDailySummary } from '@/lib/email'
 
+// Force dynamic rendering - don't pre-render at build time
+export const dynamic = 'force-dynamic'
+
 // This endpoint is called by Vercel Cron
 // Configure in vercel.json: { "crons": [{ "path": "/api/cron/daily-summary", "schedule": "0 * * * *" }] }
 // Runs every hour and checks which users should receive their summary based on their preferred time

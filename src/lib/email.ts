@@ -2,7 +2,14 @@ import { Resend } from 'resend'
 import prisma from '@/lib/prisma'
 import { formatDuration, getPriorityLabel } from '@/lib/utils'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy-load Resend to avoid build-time errors when API key isn't available
+let resend: Resend | null = null
+function getResend() {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resend
+}
 
 interface TodoForEmail {
   id: string
@@ -20,7 +27,7 @@ export async function sendTaskReminder(
   const priorityLabel = getPriorityLabel(todo.priority)
   const durationText = todo.duration ? formatDuration(todo.duration) : null
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: process.env.EMAIL_FROM || 'ADHDo <onboarding@resend.dev>',
     to: email,
     subject: `⏰ Reminder: ${todo.title}`,
@@ -129,7 +136,7 @@ export async function sendDailySummary(userId: string) {
           )
           .join('')}</ul>`
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: process.env.EMAIL_FROM || 'ADHDo <onboarding@resend.dev>',
     to: user.email,
     subject: `📋 Your tasks for ${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`,
