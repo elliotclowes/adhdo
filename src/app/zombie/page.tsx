@@ -26,7 +26,7 @@ export default async function ZombiePage() {
         <h1 className="text-2xl font-semibold text-foreground">Zombie Mode</h1>
         <p className="text-muted-foreground mt-2 max-w-md mx-auto">
           Low energy day? Here are some easier tasks you can tackle. 
-          We've avoided difficult or time-consuming ones.
+          We&apos;ve avoided difficult or time-consuming ones.
         </p>
       </div>
 
@@ -59,7 +59,7 @@ export default async function ZombiePage() {
           <li>Excludes Vital priority tasks (those need your full attention)</li>
           <li>Prefers tasks due sooner</li>
           <li>Avoids tasks with long durations</li>
-          <li>Randomly picks from what's left</li>
+          <li>Randomly picks from what&apos;s left</li>
         </ul>
       </div>
     </div>

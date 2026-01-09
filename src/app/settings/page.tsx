@@ -54,7 +54,7 @@ export default async function SettingsPage() {
         <h2 className="text-lg font-medium mb-4">Daily Task Limits</h2>
         <div className="bg-card rounded-xl border p-4">
           <p className="text-sm text-muted-foreground mb-4">
-            Set limits to prevent overwhelm. You'll get a warning when adding tasks 
+            Set limits to prevent overwhelm. You&apos;ll get a warning when adding tasks 
             beyond these limits.
           </p>
           <SettingsForm settings={settings} />

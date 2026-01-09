@@ -323,7 +323,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
           <div className="p-6 space-y-4">
             <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-800 dark:text-red-200">
-                Are you sure you want to delete "{editingTodo?.title}"? This cannot be undone.
+                Are you sure you want to delete &quot;{editingTodo?.title}&quot;? This cannot be undone.
               </p>
             </div>
             <div className="flex gap-2 justify-end">
