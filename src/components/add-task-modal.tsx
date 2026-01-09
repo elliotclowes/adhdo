@@ -315,7 +315,10 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
         {/* Completion Animation Overlay */}
         {showCompletionAnimation && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50">
-            <CompletionStar />
+            <CompletionStar 
+              isVisible={showCompletionAnimation} 
+              onComplete={() => setShowCompletionAnimation(false)} 
+            />
           </div>
         )}
 
