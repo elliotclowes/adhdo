@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, startOfDay, isBefore } from 'date-fns'
-import { CalendarIcon, Clock, Trash2, X, GripVertical, Plus } from 'lucide-react'
+import { CalendarIcon, Clock, Trash2, X, GripVertical, Plus, FileText } from 'lucide-react'
 import { DayPicker } from 'react-day-picker'
 import ReactMarkdown from 'react-markdown'
 import 'react-day-picker/dist/style.css'
@@ -71,10 +71,12 @@ const MarkdownComponents = {
 function SortableSubtask({
   subtask,
   onEdit,
+  onComplete,
   isMobile,
 }: {
   subtask: TodoWithRelations
   onEdit: () => void
+  onComplete: (checked: boolean) => void
   isMobile: boolean
 }) {
   const {
@@ -84,7 +86,7 @@ function SortableSubtask({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: subtask.id, disabled: subtask.isCompleted })
+  } = useSortable({ id: subtask.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -101,35 +103,17 @@ function SortableSubtask({
         subtask.isCompleted && "opacity-60"
       )}
     >
-      {/* Drag handle or checkmark */}
-      {subtask.isCompleted ? (
-        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-          <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
-            <svg
-              className="w-2 h-2 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={3}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        </div>
-      ) : (
-        <button
-          {...attributes}
-          {...listeners}
-          className={cn(
-            "text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0",
-            !isMobile && "opacity-0 group-hover:opacity-100 transition-opacity"
-          )}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-      )}
+      {/* Priority checkbox - clickable to complete */}
+      <div onClick={(e) => e.stopPropagation()}>
+        <TaskCheckbox
+          checked={subtask.isCompleted}
+          onCheckedChange={onComplete}
+          priority={subtask.priority}
+          disabled={false}
+        />
+      </div>
 
-      {/* Sub-task content */}
+      {/* Sub-task title */}
       <button
         onClick={onEdit}
         className={cn(
@@ -140,16 +124,28 @@ function SortableSubtask({
         {subtask.title}
       </button>
 
-      {/* Priority indicator */}
-      <div
+      {/* Description indicator - only show if description exists */}
+      {subtask.description && (
+        <button
+          onClick={onEdit}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          title="Has description"
+        >
+          <FileText className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Drag handle - always visible on mobile, hover on desktop */}
+      <button
+        {...attributes}
+        {...listeners}
         className={cn(
-          "w-2 h-2 rounded-full shrink-0",
-          subtask.priority === 1 && "bg-red-500",
-          subtask.priority === 2 && "bg-amber-500",
-          subtask.priority === 3 && "bg-indigo-500",
-          subtask.priority === 4 && "bg-slate-400"
+          "text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0",
+          !isMobile && "opacity-0 group-hover:opacity-100 transition-opacity"
         )}
-      />
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
     </div>
   )
 }
@@ -305,6 +301,9 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const handleClose = async () => {
     // If we were viewing a sub-task from parent modal, return to parent
     if (parentTodoInModal) {
+      // Reset animation state when switching from sub-task to parent
+      setShowCompletionAnimation(false)
+      
       // Fetch fresh parent data to ensure children list is up-to-date
       try {
         const freshParent = await getTodo(parentTodoInModal.id)
@@ -370,6 +369,22 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
     }
     // Open sub-task
     setEditingTodo(subtask)
+  }
+
+  // Complete/uncomplete a sub-task
+  const handleCompleteSubtask = async (subtaskId: string, checked: boolean) => {
+    startTransition(async () => {
+      try {
+        await updateTodo({ id: subtaskId, isCompleted: checked })
+        // Update local state
+        setSubtasks(subtasks.map(st => 
+          st.id === subtaskId ? { ...st, isCompleted: checked } : st
+        ))
+        router.refresh()
+      } catch (error) {
+        console.error('Failed to complete sub-task:', error)
+      }
+    })
   }
 
   // Handle drag end for sub-task reordering
@@ -587,7 +602,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                 {isEditing && (
                   <div className="pt-1 shrink-0">
                     <TaskCheckbox
-                      checked={false}
+                      checked={editingTodo?.isCompleted || false}
                       onCheckedChange={handleComplete}
                       priority={parseInt(priority)}
                       disabled={isPending || showCompletionAnimation}
@@ -601,7 +616,10 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Task title"
-                    className="w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground"
+                    className={cn(
+                      "w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground",
+                      editingTodo?.isCompleted && "line-through text-muted-foreground"
+                    )}
                   />
                 </div>
                 <button
@@ -686,6 +704,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                             key={subtask.id}
                             subtask={subtask}
                             onEdit={() => handleEditSubtask(subtask)}
+                            onComplete={(checked) => handleCompleteSubtask(subtask.id, checked)}
                             isMobile={typeof window !== 'undefined' && window.innerWidth < 768}
                           />
                         ))}
