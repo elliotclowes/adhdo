@@ -40,7 +40,7 @@ import {
 } from './ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { cn } from '@/lib/utils'
-import { createTodo, updateTodo, deleteTodo, completeTodo, getTodayTaskCounts, reorderSubtasks } from '@/lib/actions/todos'
+import { createTodo, updateTodo, deleteTodo, completeTodo, getTodayTaskCounts, reorderSubtasks, getTodo } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
 import { TaskCheckbox } from './task-checkbox'
 import { CompletionStar } from './completion-star'
@@ -84,7 +84,7 @@ function SortableSubtask({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: subtask.id })
+  } = useSortable({ id: subtask.id, disabled: subtask.isCompleted })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -96,24 +96,46 @@ function SortableSubtask({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+      className={cn(
+        "flex items-center gap-2 p-2 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group",
+        subtask.isCompleted && "opacity-60"
+      )}
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className={cn(
-          "text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0",
-          !isMobile && "opacity-0 group-hover:opacity-100 transition-opacity"
-        )}
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+      {/* Drag handle or checkmark */}
+      {subtask.isCompleted ? (
+        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+          <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
+            <svg
+              className="w-2 h-2 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        </div>
+      ) : (
+        <button
+          {...attributes}
+          {...listeners}
+          className={cn(
+            "text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0",
+            !isMobile && "opacity-0 group-hover:opacity-100 transition-opacity"
+          )}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Sub-task content */}
       <button
         onClick={onEdit}
-        className="flex-1 text-left text-sm hover:text-primary transition-colors truncate"
+        className={cn(
+          "flex-1 text-left text-sm hover:text-primary transition-colors truncate",
+          subtask.isCompleted && "line-through text-muted-foreground"
+        )}
       >
         {subtask.title}
       </button>
@@ -280,11 +302,20 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
     setShowCompletionAnimation(false)
   }
 
-  const handleClose = () => {
+  const handleClose = async () => {
     // If we were viewing a sub-task from parent modal, return to parent
     if (parentTodoInModal) {
-      setEditingTodo(parentTodoInModal)
-      setParentTodoInModal(null)
+      // Fetch fresh parent data to ensure children list is up-to-date
+      try {
+        const freshParent = await getTodo(parentTodoInModal.id)
+        setEditingTodo(freshParent as TodoWithRelations)
+        setParentTodoInModal(null)
+      } catch (error) {
+        console.error('Failed to fetch parent:', error)
+        // Fallback to cached parent
+        setEditingTodo(parentTodoInModal)
+        setParentTodoInModal(null)
+      }
     } else {
       setAddTaskModalOpen(false)
       setEditingTodo(null)

@@ -29,7 +29,7 @@ const MarkdownComponents = {
   ),
 }
 import { TaskCheckbox } from './task-checkbox'
-import { completeTodo } from '@/lib/actions/todos'
+import { completeTodo, getTodo } from '@/lib/actions/todos'
 import { useAppStore } from '@/lib/store'
 import type { TodoWithRelations } from '@/lib/types'
 
@@ -157,10 +157,18 @@ export function TaskCard({
               {/* Parent info for sub-tasks */}
               {todo.parent && (
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation()
-                    setEditingTodo(todo.parent as TodoWithRelations)
-                    setAddTaskModalOpen(true)
+                    // Fetch full parent with children
+                    if (todo.parent) {
+                      try {
+                        const fullParent = await getTodo(todo.parent.id)
+                        setEditingTodo(fullParent as TodoWithRelations)
+                        setAddTaskModalOpen(true)
+                      } catch (error) {
+                        console.error('Failed to fetch parent:', error)
+                      }
+                    }
                   }}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
                 >

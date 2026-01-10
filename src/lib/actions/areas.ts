@@ -149,7 +149,6 @@ export async function getAreaWithTodos(id: string) {
           tags: { include: { tag: true } },
           parent: true, // Include parent info for sub-tasks
           children: {
-            where: { isCompleted: false },
             include: {
               children: true,
             },

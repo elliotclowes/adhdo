@@ -425,7 +425,6 @@ export async function getTodosForToday() {
       tags: { include: { tag: true } },
       parent: true, // Include parent info for sub-tasks
       children: {
-        where: { isCompleted: false },
         include: {
           children: true,
         },
@@ -440,6 +439,38 @@ export async function getTodosForToday() {
   })
 
   return todos
+}
+
+// Get single todo with all relations
+export async function getTodo(id: string) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized')
+  }
+
+  const userId = session.user.id
+
+  const todo = await prisma.todo.findUnique({
+    where: { id },
+    include: {
+      area: true,
+      tags: { include: { tag: true } },
+      parent: true,
+      children: {
+        include: {
+          area: true,
+          tags: { include: { tag: true } },
+        },
+        orderBy: { order: 'asc' },
+      },
+    },
+  })
+
+  if (!todo || todo.userId !== userId) {
+    throw new Error('Todo not found')
+  }
+
+  return todo
 }
 
 // Get todos needing sorting (no area assigned)
