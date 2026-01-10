@@ -617,30 +617,6 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   </div>
                 )}
                 <div className="flex-1">
-                  {/* Parent task indicator for sub-tasks */}
-                  {isEditing && editingTodo?.parent && (
-                    <button
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        if (editingTodo.parent) {
-                          try {
-                            const fullParent = await getTodo(editingTodo.parent.id)
-                            setEditingTodo(fullParent as TodoWithRelations)
-                            setParentTodoInModal(null)
-                          } catch (error) {
-                            console.error('Failed to fetch parent:', error)
-                          }
-                        }
-                      }}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 group"
-                    >
-                      <span>↳</span>
-                      <span className="font-medium group-hover:underline">
-                        Parent: {editingTodo.parent.title}
-                      </span>
-                    </button>
-                  )}
-                  
                   <input
                     ref={titleInputRef}
                     value={title}
@@ -651,6 +627,31 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                       editingTodo?.isCompleted && "line-through text-muted-foreground"
                     )}
                   />
+                  
+                  {/* Parent task indicator for sub-tasks - below title */}
+                  {isEditing && (editingTodo?.parent || parentTodoInModal) && (
+                    <button
+                      onClick={async (e) => {
+                        e.preventDefault()
+                        const parentId = editingTodo?.parent?.id || parentTodoInModal?.id
+                        if (parentId) {
+                          try {
+                            const fullParent = await getTodo(parentId)
+                            setEditingTodo(fullParent as TodoWithRelations)
+                            setParentTodoInModal(null)
+                          } catch (error) {
+                            console.error('Failed to fetch parent:', error)
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 group"
+                    >
+                      <span>↳</span>
+                      <span className="font-medium group-hover:underline">
+                        Parent: {editingTodo?.parent?.title || parentTodoInModal?.title}
+                      </span>
+                    </button>
+                  )}
                 </div>
                 <button
                   ref={closeButtonRef}
