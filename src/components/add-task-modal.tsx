@@ -71,10 +71,10 @@ const MarkdownComponents = {
     <p className="mb-3 last:mb-0">{children}</p>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="list-disc list-inside mb-3 last:mb-0 space-y-1">{children}</ul>
+    <ul className="list-disc pl-4 mb-3 last:mb-0 space-y-1">{children}</ul>
   ),
   ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="list-decimal list-inside mb-3 last:mb-0 space-y-1">{children}</ol>
+    <ol className="list-decimal pl-4 mb-3 last:mb-0 space-y-1">{children}</ol>
   ),
 }
 
@@ -91,21 +91,21 @@ function TimePicker({
   const hours = Array.from({ length: 24 }, (_, i) => i)
   const minutes = [0, 15, 30, 45]
   
-  const [hour, minute] = value ? value.split(':').map(Number) : [9, 0]
+  const [hour, minute] = value ? value.split(':').map(Number) : [null, null]
   
   const handleHourChange = (newHour: string) => {
-    const currentMinute = minute || 0
+    const currentMinute = minute !== undefined && minute !== null ? minute : 0
     onChange(`${newHour.padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`)
   }
   
   const handleMinuteChange = (newMinute: string) => {
-    const currentHour = hour || 9
+    const currentHour = hour !== undefined && hour !== null ? hour : 0
     onChange(`${String(currentHour).padStart(2, '0')}:${newMinute.padStart(2, '0')}`)
   }
   
   return (
     <div className="flex gap-2 items-center">
-      <Select value={String(hour)} onValueChange={handleHourChange}>
+      <Select value={value && hour !== null ? String(hour) : undefined} onValueChange={handleHourChange}>
         <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
           <SelectValue placeholder="Hour" />
         </SelectTrigger>
@@ -118,7 +118,7 @@ function TimePicker({
         </SelectContent>
       </Select>
       <span className="text-muted-foreground">:</span>
-      <Select value={String(minute)} onValueChange={handleMinuteChange}>
+      <Select value={value && minute !== null ? String(minute) : undefined} onValueChange={handleMinuteChange}>
         <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
           <SelectValue placeholder="Min" />
         </SelectTrigger>
@@ -1012,7 +1012,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                           )}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 hidden md:block" align="start">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <DayPicker
                           mode="single"
                           selected={scheduledDate}
@@ -1116,6 +1116,13 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                 >
                   {isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Task'}
                 </Button>
+                
+                {/* Helper text when button is disabled due to missing time */}
+                {scheduledDate && !scheduledTime && title.trim() && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Please select a time to save this task
+                  </p>
+                )}
                 
                 <div className="flex gap-2">
                   <Button 
