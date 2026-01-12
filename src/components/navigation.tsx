@@ -21,9 +21,10 @@ interface NavigationProps {
   areas: { id: string; name: string; color: string; icon: string | null; _count: { todos: number } }[]
   tags: { id: string; name: string; color: string; _count: { todos: number } }[]
   unsortedCount: number
+  currentStreak?: number
 }
 
-export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
+export function Navigation({ areas, tags, unsortedCount, currentStreak = 0 }: NavigationProps) {
   const pathname = usePathname()
   const { setAddTaskModalOpen, setEditingTodo } = useAppStore()
 
@@ -66,6 +67,23 @@ export function Navigation({ areas, tags, unsortedCount }: NavigationProps) {
           </kbd>
         </Button>
       </div>
+
+      {/* Streak Display */}
+      {currentStreak > 0 && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+            <span className="text-lg">🔥</span>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                {currentStreak} day streak
+              </div>
+              <div className="text-xs text-orange-700 dark:text-orange-300">
+                Keep it going!
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Links */}
       <div className="px-2 py-2">

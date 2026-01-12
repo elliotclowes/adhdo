@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import type { CreateTodoInput, UpdateTodoInput, RecurringPattern, TodoWithRelations } from '@/lib/types'
+import { updateRecurringStreak } from './streaks'
 
 export async function createTodo(input: CreateTodoInput) {
   const session = await auth()
@@ -200,6 +201,11 @@ export async function completeTodo(id: string) {
       completedAt: new Date(),
     },
   })
+
+  // Update recurring task streak if applicable
+  if (existing.isRecurring) {
+    await updateRecurringStreak(id)
+  }
 
   // Complete all incomplete children (sub-tasks)
   if (existing.children && existing.children.length > 0) {

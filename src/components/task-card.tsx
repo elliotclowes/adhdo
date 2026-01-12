@@ -244,6 +244,11 @@ export function TaskCard({
                   <div className="flex items-center gap-1 text-primary">
                     <Repeat className="w-3.5 h-3.5" />
                     <span>Repeating</span>
+                    {todo.recurringStreak > 0 && (
+                      <span className="flex items-center gap-0.5 text-orange-500 font-medium">
+                        🔥 {todo.recurringStreak}
+                      </span>
+                    )}
                   </div>
                 )}
 

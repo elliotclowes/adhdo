@@ -9,7 +9,7 @@ import type { TodoWithRelations } from '@/lib/types'
 async function getTodayData(userId: string): Promise<{
   todayTodos: TodoWithRelations[]
   overdueTodos: TodoWithRelations[]
-  user: { name: string | null; dailyTaskLimit: number } | null
+  user: { name: string | null; dailyTaskLimit: number; currentStreak: number } | null
 }> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -62,7 +62,7 @@ async function getTodayData(userId: string): Promise<{
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, dailyTaskLimit: true },
+      select: { name: true, dailyTaskLimit: true, currentStreak: true },
     }),
   ])
 
@@ -96,7 +96,7 @@ export default async function TodayPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-card rounded-xl border p-4">
           <p className="text-3xl font-bold text-primary">{todayTodos.length}</p>
           <p className="text-sm text-muted-foreground">Tasks today</p>
@@ -109,6 +109,12 @@ export default async function TodayPage() {
         <div className="bg-card rounded-xl border p-4">
           <p className="text-3xl font-bold text-amber-500">{overdueTodos.length}</p>
           <p className="text-sm text-muted-foreground">Overdue</p>
+        </div>
+        <div className="bg-card rounded-xl border p-4">
+          <p className="text-3xl font-bold text-orange-500 flex items-center gap-2">
+            🔥 {user?.currentStreak ?? 0}
+          </p>
+          <p className="text-sm text-muted-foreground">Day streak</p>
         </div>
       </div>
 

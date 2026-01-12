@@ -44,8 +44,9 @@ async function getNavigationData(userId: string): Promise<{
   areas: AreaWithCount[]
   tags: TagWithCount[]
   unsortedCount: number
+  currentStreak: number
 }> {
-  const [areas, tags] = await Promise.all([
+  const [areas, tags, user] = await Promise.all([
     prisma.area.findMany({
       where: { userId },
       include: {
@@ -73,6 +74,10 @@ async function getNavigationData(userId: string): Promise<{
         },
       },
       orderBy: { name: 'asc' },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true },
     }),
   ])
 
@@ -109,7 +114,8 @@ async function getNavigationData(userId: string): Promise<{
   return { 
     areas: areas as AreaWithCount[], 
     tags: tags as TagWithCount[], 
-    unsortedCount 
+    unsortedCount,
+    currentStreak: user?.currentStreak ?? 0,
   }
 }
 
@@ -138,7 +144,7 @@ export default async function RootLayout({
     )
   }
 
-  const { areas, tags, unsortedCount } = await getNavigationData(session.user.id)
+  const { areas, tags, unsortedCount, currentStreak } = await getNavigationData(session.user.id)
 
   return (
     <html lang="en">
@@ -155,6 +161,7 @@ export default async function RootLayout({
               areas={areas}
               tags={tags}
               unsortedCount={unsortedCount}
+              currentStreak={currentStreak}
             />
           </div>
 

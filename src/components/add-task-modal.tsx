@@ -1074,6 +1074,17 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   <Label htmlFor="isRecurring" className="text-xs cursor-pointer">
                     Repeat task
                   </Label>
+                  {/* Show streak for recurring tasks when editing */}
+                  {isEditing && isRecurring && editingTodo?.recurringStreak && editingTodo.recurringStreak > 0 && (
+                    <div className="ml-auto flex items-center gap-1 text-orange-500 text-xs font-medium">
+                      🔥 {editingTodo.recurringStreak} streak
+                      {editingTodo.longestRecurringStreak > editingTodo.recurringStreak && (
+                        <span className="text-muted-foreground">
+                          (best: {editingTodo.longestRecurringStreak})
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 {isRecurring && (

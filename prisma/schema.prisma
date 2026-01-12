@@ -63,6 +63,11 @@ model User {
   dailySummaryTime      String  @default("07:00") // HH:mm format
   timezone              String  @default("Europe/London")
 
+  // Streak tracking
+  currentStreak         Int      @default(0) // Current daily streak
+  longestStreak         Int      @default(0) // Best ever daily streak
+  lastStreakCheckDate   DateTime? // Last date we checked for streak completion
+
   accounts Account[]
   sessions Session[]
   areas    Area[]
@@ -127,6 +132,11 @@ model Todo {
   isRecurring       Boolean @default(false)
   recurringPattern  String? // RRULE-like pattern stored as JSON
   recurringParentId String? // If this is a generated instance of a recurring todo
+  
+  // Recurring task streak tracking
+  recurringStreak              Int       @default(0) // Current streak for this recurring task
+  longestRecurringStreak       Int       @default(0) // Best ever streak for this task
+  lastRecurringCompletionDate  DateTime? // When they last completed this on the due date
   
   // Metadata
   order       Int      @default(0)

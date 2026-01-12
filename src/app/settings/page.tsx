@@ -61,6 +61,33 @@ export default async function SettingsPage() {
         </div>
       </section>
 
+      {/* Streaks Section */}
+      <section className="mb-8">
+        <h2 className="text-lg font-medium mb-4">Streaks</h2>
+        <div className="bg-card rounded-xl border p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-3xl font-bold text-orange-500 flex items-center gap-2">
+                🔥 {settings?.currentStreak ?? 0}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">Current streak</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Days completing all scheduled tasks
+              </p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-primary">
+                {settings?.longestStreak ?? 0}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">Best streak</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your personal record
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Notifications Section */}
       <section className="mb-8">
         <h2 className="text-lg font-medium mb-4">Email Notifications</h2>

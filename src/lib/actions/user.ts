@@ -23,6 +23,8 @@ export async function getUserSettings() {
       somedayTaskLimit: true,
       dailySummaryTime: true,
       timezone: true,
+      currentStreak: true,
+      longestStreak: true,
     },
   })
 
