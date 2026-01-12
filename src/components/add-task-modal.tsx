@@ -67,6 +67,15 @@ const MarkdownComponents = {
       {children}
     </a>
   ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="mb-3 last:mb-0">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="list-disc list-inside mb-3 last:mb-0 space-y-1">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="list-decimal list-inside mb-3 last:mb-0 space-y-1">{children}</ol>
+  ),
 }
 
 // Custom time picker component
@@ -316,6 +325,11 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
       // Focus close button when editing (keeps view at top, no keyboard on mobile)
       setTimeout(() => {
         closeButtonRef.current?.focus()
+        // Adjust title textarea height after content is loaded
+        if (titleInputRef.current) {
+          titleInputRef.current.style.height = 'auto'
+          titleInputRef.current.style.height = titleInputRef.current.scrollHeight + 'px'
+        }
       }, 100)
     } else {
       // Reset form for new task
@@ -566,7 +580,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
       areaId: areaId || undefined,
       tagIds: selectedTags.length > 0 ? selectedTags : undefined,
       scheduledDate: finalScheduledDate,
-      duration: duration ? parseInt(duration) : undefined,
+      duration: duration ? parseInt(duration) : (finalScheduledDate ? 15 : undefined),
       parentId: parentId || undefined,
       isRecurring,
       recurringPattern: isRecurring ? {
@@ -616,10 +630,6 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
     // Clear validation error if date is cleared
     if (!date) {
       setTimeValidationError(false)
-    }
-    // Show validation error if date is set but no time
-    if (date && !scheduledTime) {
-      setTimeValidationError(true)
     }
   }
 
