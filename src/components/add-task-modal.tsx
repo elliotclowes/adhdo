@@ -106,8 +106,8 @@ function TimePicker({
   return (
     <div className="flex gap-2 items-center">
       <Select value={value && hour !== null ? String(hour) : undefined} onValueChange={handleHourChange}>
-        <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
-          <SelectValue placeholder="Hour" />
+        <SelectTrigger className={cn("w-16 h-9", hasError && "border-red-500")}>
+          <SelectValue placeholder="Hr" />
         </SelectTrigger>
         <SelectContent>
           {hours.map((h) => (
@@ -119,7 +119,7 @@ function TimePicker({
       </Select>
       <span className="text-muted-foreground">:</span>
       <Select value={value && minute !== null ? String(minute) : undefined} onValueChange={handleMinuteChange}>
-        <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
+        <SelectTrigger className={cn("w-16 h-9", hasError && "border-red-500")}>
           <SelectValue placeholder="Min" />
         </SelectTrigger>
         <SelectContent>
