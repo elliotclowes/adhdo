@@ -6,6 +6,8 @@ import { format, startOfDay, isBefore } from 'date-fns'
 import { CalendarIcon, Clock, Trash2, X, GripVertical, Plus, FileText } from 'lucide-react'
 import { DayPicker } from 'react-day-picker'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import 'react-day-picker/dist/style.css'
 import {
   DndContext,
@@ -67,6 +69,62 @@ const MarkdownComponents = {
   ),
 }
 
+// Custom time picker component
+function TimePicker({
+  value,
+  onChange,
+  hasError,
+}: {
+  value: string
+  onChange: (time: string) => void
+  hasError?: boolean
+}) {
+  const hours = Array.from({ length: 24 }, (_, i) => i)
+  const minutes = [0, 15, 30, 45]
+  
+  const [hour, minute] = value ? value.split(':').map(Number) : [9, 0]
+  
+  const handleHourChange = (newHour: string) => {
+    const currentMinute = minute || 0
+    onChange(`${newHour.padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`)
+  }
+  
+  const handleMinuteChange = (newMinute: string) => {
+    const currentHour = hour || 9
+    onChange(`${String(currentHour).padStart(2, '0')}:${newMinute.padStart(2, '0')}`)
+  }
+  
+  return (
+    <div className="flex gap-2 items-center">
+      <Select value={String(hour)} onValueChange={handleHourChange}>
+        <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
+          <SelectValue placeholder="Hour" />
+        </SelectTrigger>
+        <SelectContent>
+          {hours.map((h) => (
+            <SelectItem key={h} value={String(h)}>
+              {String(h).padStart(2, '0')}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground">:</span>
+      <Select value={String(minute)} onValueChange={handleMinuteChange}>
+        <SelectTrigger className={cn("w-20 h-9", hasError && "border-red-500")}>
+          <SelectValue placeholder="Min" />
+        </SelectTrigger>
+        <SelectContent>
+          {minutes.map((m) => (
+            <SelectItem key={m} value={String(m)}>
+              {String(m).padStart(2, '0')}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 // Sortable sub-task item component
 function SortableSubtask({
   subtask,
@@ -117,11 +175,11 @@ function SortableSubtask({
       <button
         onClick={onEdit}
         className={cn(
-          "flex-1 text-left text-sm hover:text-primary transition-colors truncate",
+          "flex-1 text-left text-sm hover:text-primary transition-colors min-w-0",
           subtask.isCompleted && "line-through text-muted-foreground"
         )}
       >
-        {subtask.title}
+        <span className="break-words">{subtask.title}</span>
       </button>
 
       {/* Description indicator - only show if description exists */}
@@ -163,7 +221,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   } = useAppStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const titleInputRef = useRef<HTMLInputElement>(null)
+  const titleInputRef = useRef<HTMLTextAreaElement>(null)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -181,6 +239,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
   const [recurringInterval, setRecurringInterval] = useState('1')
   const [showCompletionAnimation, setShowCompletionAnimation] = useState(false)
+  const [timeValidationError, setTimeValidationError] = useState(false)
   
   // Sub-tasks state
   const [subtasks, setSubtasks] = useState<TodoWithRelations[]>([])
@@ -473,6 +532,15 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
   const handleSubmit = async (overrideLimit = false) => {
     if (!title.trim()) return
 
+    // Validate time if date is set
+    if (scheduledDate && !scheduledTime) {
+      setTimeValidationError(true)
+      return
+    }
+    
+    // Clear validation error if we get here
+    setTimeValidationError(false)
+
     // Check limits (skip if overriding or editing)
     if (!overrideLimit && !showLimitWarning && !isEditing) {
       const withinLimits = await checkLimits()
@@ -544,11 +612,20 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
       return // Don't allow past dates
     }
     setScheduledDate(date)
+    
+    // Clear validation error if date is cleared
+    if (!date) {
+      setTimeValidationError(false)
+    }
+    // Show validation error if date is set but no time
+    if (date && !scheduledTime) {
+      setTimeValidationError(true)
+    }
   }
 
   return (
     <Dialog open={isAddTaskModalOpen} onOpenChange={setAddTaskModalOpen}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="fixed sm:max-w-[800px] w-full h-full sm:h-auto max-h-full sm:max-h-[90vh] overflow-y-auto p-0 gap-0 sm:rounded-lg rounded-none left-0 top-0 sm:left-[50%] sm:top-[50%] translate-x-0 translate-y-0 sm:translate-x-[-50%] sm:translate-y-[-50%]">
         {/* Completion Animation Overlay */}
         {showCompletionAnimation && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50">
@@ -617,15 +694,21 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   </div>
                 )}
                 <div className="flex-1">
-                  <input
-                    ref={titleInputRef}
+                  <textarea
+                    ref={titleInputRef as React.RefObject<HTMLTextAreaElement>}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Task title"
+                    rows={1}
                     className={cn(
-                      "w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground",
+                      "w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground resize-none overflow-hidden",
                       editingTodo?.isCompleted && "line-through text-muted-foreground"
                     )}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement
+                      target.style.height = 'auto'
+                      target.style.height = target.scrollHeight + 'px'
+                    }}
                   />
                   
                   {/* Parent task indicator for sub-tasks - below title */}
@@ -695,7 +778,10 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                   >
                     {description ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown components={MarkdownComponents}>
+                        <ReactMarkdown 
+                          components={MarkdownComponents}
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                        >
                           {description}
                         </ReactMarkdown>
                       </div>
@@ -931,12 +1017,19 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
 
                 <div className="space-y-2">
                   <Label className="text-xs">Time</Label>
-                  <Input
-                    type="time"
+                  <TimePicker
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="h-9"
+                    onChange={(time) => {
+                      setScheduledTime(time)
+                      setTimeValidationError(false)
+                    }}
+                    hasError={timeValidationError}
                   />
+                  {timeValidationError && (
+                    <p className="text-xs text-red-500">
+                      A task isn&apos;t &quot;planned&quot; until it has a date and a <strong>time</strong>. Please choose a time.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -949,7 +1042,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
                     type="number"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
-                    placeholder="30"
+                    placeholder="15"
                     min="1"
                     max="480"
                     className="w-20 h-9"
@@ -1008,7 +1101,7 @@ export function AddTaskModal({ areas, tags, parentId }: AddTaskModalProps) {
               <div className="space-y-2">
                 <Button 
                   onClick={() => handleSubmit()} 
-                  disabled={isPending || !title.trim()}
+                  disabled={isPending || !title.trim() || (scheduledDate && !scheduledTime)}
                   className="w-full"
                 >
                   {isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Task'}
