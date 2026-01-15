@@ -130,6 +130,40 @@ export async function getAreas() {
   return areas
 }
 
+export async function reorderAreas(areaIds: string[]) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized')
+  }
+
+  const userId = session.user.id
+
+  // Verify all areas belong to user
+  const areas = await prisma.area.findMany({
+    where: { id: { in: areaIds }, userId },
+    select: { id: true },
+  })
+
+  if (areas.length !== areaIds.length) {
+    throw new Error('Invalid areas')
+  }
+
+  // Update order for each area
+  await Promise.all(
+    areaIds.map((id, index) =>
+      prisma.area.update({
+        where: { id },
+        data: { order: index },
+      })
+    )
+  )
+
+  revalidatePath('/')
+  revalidatePath('/areas')
+
+  return { success: true }
+}
+
 export async function getAreaWithTodos(id: string) {
   const session = await auth()
   if (!session?.user?.id) {
