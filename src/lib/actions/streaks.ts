@@ -8,14 +8,18 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 /**
  * Check and update daily streak for a user
  * Called by cron job at midnight in user's timezone
+ *
+ * With immediate streak updates, this function now primarily:
+ * 1. Resets streaks when users miss days (didn't complete all tasks)
+ * 2. Acts as a fallback if immediate update didn't fire
  */
 export async function checkDailyStreak(userId: string, checkDate: Date) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { 
-      id: true, 
-      timezone: true, 
-      currentStreak: true, 
+    select: {
+      id: true,
+      timezone: true,
+      currentStreak: true,
       longestStreak: true,
       lastStreakCheckDate: true
     }
@@ -28,12 +32,25 @@ export async function checkDailyStreak(userId: string, checkDate: Date) {
   const dateInUserTz = toZonedTime(checkDate, userTimezone)
   const dayStart = startOfDay(dateInUserTz)
   const dayEnd = endOfDay(dateInUserTz)
+  const checkDateStr = format(dateInUserTz, 'yyyy-MM-dd')
 
   // Convert back to UTC for database queries
   const dayStartUTC = fromZonedTime(dayStart, userTimezone)
   const dayEndUTC = fromZonedTime(dayEnd, userTimezone)
 
-  // Find all tasks scheduled for this day (that have both date AND time)
+  // Check if user already got credit for this date (via immediate sync)
+  let lastCreditedDateStr: string | null = null
+  if (user.lastStreakCheckDate) {
+    const lastCheckInUserTz = toZonedTime(user.lastStreakCheckDate, userTimezone)
+    lastCreditedDateStr = format(lastCheckInUserTz, 'yyyy-MM-dd')
+  }
+
+  // If already processed this date, skip
+  if (lastCreditedDateStr === checkDateStr) {
+    return
+  }
+
+  // Find all tasks scheduled for this day
   const scheduledTasks = await prisma.todo.findMany({
     where: {
       userId: user.id,
@@ -41,16 +58,14 @@ export async function checkDailyStreak(userId: string, checkDate: Date) {
         gte: dayStartUTC,
         lte: dayEndUTC,
       },
-      parentId: null, // Only count parent tasks (sub-tasks are independent)
+      parentId: null,
     },
     select: {
       id: true,
       isCompleted: true,
-      scheduledDate: true,
     }
   })
 
-  // Also count sub-tasks with scheduled dates independently
   const scheduledSubtasks = await prisma.todo.findMany({
     where: {
       userId: user.id,
@@ -58,18 +73,17 @@ export async function checkDailyStreak(userId: string, checkDate: Date) {
         gte: dayStartUTC,
         lte: dayEndUTC,
       },
-      parentId: { not: null }, // Only sub-tasks
+      parentId: { not: null },
     },
     select: {
       id: true,
       isCompleted: true,
-      scheduledDate: true,
     }
   })
 
   const allScheduledTasks = [...scheduledTasks, ...scheduledSubtasks]
 
-  // If no tasks scheduled, streak stays the same
+  // If no tasks scheduled, just update the check date
   if (allScheduledTasks.length === 0) {
     await prisma.user.update({
       where: { id: user.id },
@@ -78,32 +92,31 @@ export async function checkDailyStreak(userId: string, checkDate: Date) {
     return
   }
 
-  // Check if ALL scheduled tasks were completed
   const allCompleted = allScheduledTasks.every(task => task.isCompleted)
 
-  let newStreak = user.currentStreak
-  let newLongestStreak = user.longestStreak
-
   if (allCompleted) {
-    // Increment streak
-    newStreak = user.currentStreak + 1
-    // Update longest if needed
-    if (newStreak > user.longestStreak) {
-      newLongestStreak = newStreak
-    }
-  } else {
-    // Reset streak
-    newStreak = 0
-  }
+    // All complete - increment streak (fallback if immediate sync missed it)
+    const newStreak = user.currentStreak + 1
+    const newLongestStreak = Math.max(newStreak, user.longestStreak)
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      currentStreak: newStreak,
-      longestStreak: newLongestStreak,
-      lastStreakCheckDate: checkDate
-    }
-  })
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        currentStreak: newStreak,
+        longestStreak: newLongestStreak,
+        lastStreakCheckDate: checkDate
+      }
+    })
+  } else {
+    // Not all complete - reset streak
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        currentStreak: 0,
+        lastStreakCheckDate: checkDate
+      }
+    })
+  }
 }
 
 /**
@@ -219,4 +232,123 @@ export async function getUserStreak() {
   })
 
   return user
+}
+
+/**
+ * Sync daily streak based on current task completion status
+ * Called immediately when tasks are completed, uncompleted, or added
+ *
+ * Logic:
+ * - If all tasks for today are complete AND we haven't credited today yet → +1 streak
+ * - If not all tasks are complete AND we had credited today → -1 streak
+ */
+export async function syncDailyStreak(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      timezone: true,
+      currentStreak: true,
+      longestStreak: true,
+      lastStreakCheckDate: true,
+    }
+  })
+
+  if (!user) return
+
+  const userTimezone = user.timezone
+  const now = new Date()
+  const nowInUserTz = toZonedTime(now, userTimezone)
+  const todayStart = startOfDay(nowInUserTz)
+  const todayEnd = endOfDay(nowInUserTz)
+
+  // Convert to UTC for database queries
+  const todayStartUTC = fromZonedTime(todayStart, userTimezone)
+  const todayEndUTC = fromZonedTime(todayEnd, userTimezone)
+
+  // Get today's date string for comparison
+  const todayDateStr = format(nowInUserTz, 'yyyy-MM-dd')
+
+  // Check what date we last credited (if any)
+  let lastCreditedDateStr: string | null = null
+  if (user.lastStreakCheckDate) {
+    const lastCheckInUserTz = toZonedTime(user.lastStreakCheckDate, userTimezone)
+    lastCreditedDateStr = format(lastCheckInUserTz, 'yyyy-MM-dd')
+  }
+
+  const alreadyCreditedToday = lastCreditedDateStr === todayDateStr
+
+  // Get all scheduled tasks for today (parent tasks only, plus sub-tasks with their own dates)
+  const scheduledTasks = await prisma.todo.findMany({
+    where: {
+      userId: user.id,
+      scheduledDate: {
+        gte: todayStartUTC,
+        lte: todayEndUTC,
+      },
+      parentId: null,
+    },
+    select: {
+      id: true,
+      isCompleted: true,
+    }
+  })
+
+  const scheduledSubtasks = await prisma.todo.findMany({
+    where: {
+      userId: user.id,
+      scheduledDate: {
+        gte: todayStartUTC,
+        lte: todayEndUTC,
+      },
+      parentId: { not: null },
+    },
+    select: {
+      id: true,
+      isCompleted: true,
+    }
+  })
+
+  const allScheduledTasks = [...scheduledTasks, ...scheduledSubtasks]
+
+  // If no tasks scheduled for today, don't change anything
+  if (allScheduledTasks.length === 0) {
+    return
+  }
+
+  const allComplete = allScheduledTasks.every(task => task.isCompleted)
+
+  if (allComplete && !alreadyCreditedToday) {
+    // All tasks complete and we haven't credited today → +1 streak
+    const newStreak = user.currentStreak + 1
+    const newLongestStreak = Math.max(newStreak, user.longestStreak)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        currentStreak: newStreak,
+        longestStreak: newLongestStreak,
+        lastStreakCheckDate: now, // Mark today as credited
+      }
+    })
+  } else if (!allComplete && alreadyCreditedToday) {
+    // Not all complete but we had credited today → -1 streak (revert)
+    const newStreak = Math.max(0, user.currentStreak - 1)
+
+    // Calculate yesterday's date for lastStreakCheckDate
+    const yesterdayInUserTz = new Date(nowInUserTz)
+    yesterdayInUserTz.setDate(yesterdayInUserTz.getDate() - 1)
+    const yesterdayUTC = fromZonedTime(yesterdayInUserTz, userTimezone)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        currentStreak: newStreak,
+        lastStreakCheckDate: yesterdayUTC, // Revert to yesterday
+      }
+    })
+    // Note: We don't decrement longestStreak - it's a high-water mark
+  }
+  // If allComplete && alreadyCreditedToday → no change needed
+  // If !allComplete && !alreadyCreditedToday → no change needed
 }

@@ -17,6 +17,10 @@ export type Todo = {
   userId: string
   createdAt: Date
   updatedAt: Date
+  // Recurring task streak tracking
+  recurringStreak: number
+  longestRecurringStreak: number
+  lastRecurringCompletionDate: Date | null
 }
 
 export type Area = {

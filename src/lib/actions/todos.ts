@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import type { CreateTodoInput, UpdateTodoInput, RecurringPattern, TodoWithRelations } from '@/lib/types'
-import { updateRecurringStreak } from './streaks'
+import { updateRecurringStreak, syncDailyStreak } from './streaks'
 
 export async function createTodo(input: CreateTodoInput) {
   const session = await auth()
@@ -67,6 +67,11 @@ export async function createTodo(input: CreateTodoInput) {
       children: true,
     },
   })
+
+  // Sync daily streak if task was scheduled for today
+  if (input.scheduledDate) {
+    await syncDailyStreak(userId)
+  }
 
   revalidatePath('/')
   revalidatePath('/today')
@@ -159,6 +164,11 @@ export async function updateTodo(input: UpdateTodoInput) {
     },
   })
 
+  // Sync daily streak if completion status or scheduled date changed
+  if (input.isCompleted !== undefined || input.scheduledDate !== undefined) {
+    await syncDailyStreak(userId)
+  }
+
   revalidatePath('/')
   revalidatePath('/today')
   revalidatePath('/schedule')
@@ -225,12 +235,12 @@ export async function completeTodo(id: string) {
   if (existing.isRecurring && existing.recurringPattern) {
     const pattern = JSON.parse(existing.recurringPattern as string) as RecurringPattern
     const nextDate = calculateNextOccurrence(new Date(), pattern)
-    
+
     if (nextDate) {
       // Calculate date offset for children
       const parentOldDate = existing.scheduledDate ? new Date(existing.scheduledDate) : null
       const dateOffset = parentOldDate ? nextDate.getTime() - parentOldDate.getTime() : 0
-      
+
       // Create next parent occurrence
       const nextParent = await prisma.todo.create({
         data: {
@@ -298,6 +308,9 @@ export async function completeTodo(id: string) {
     }
   }
 
+  // Sync daily streak (may increment if all today's tasks now complete)
+  await syncDailyStreak(userId)
+
   revalidatePath('/')
   revalidatePath('/today')
   revalidatePath('/schedule')
@@ -332,6 +345,9 @@ export async function uncompleteTodo(id: string) {
     },
   })
 
+  // Sync daily streak (may decrement if we had credited today)
+  await syncDailyStreak(userId)
+
   revalidatePath('/')
   revalidatePath('/today')
   revalidatePath('/schedule')
@@ -361,6 +377,9 @@ export async function deleteTodo(id: string) {
   await prisma.todo.delete({
     where: { id },
   })
+
+  // Sync daily streak (deleting a task may change today's completion status)
+  await syncDailyStreak(userId)
 
   revalidatePath('/')
   revalidatePath('/today')
