@@ -149,39 +149,41 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background antialiased">
-        <NextTopLoader 
+        <NextTopLoader
           color="#6366f1"
           height={3}
           showSpinner={false}
         />
-        <div className="flex h-screen">
-          {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <Navigation
-              areas={areas}
-              tags={tags}
-              unsortedCount={unsortedCount}
-              currentStreak={currentStreak}
-            />
+        <Providers>
+          <div className="flex h-screen">
+            {/* Desktop Navigation */}
+            <div className="hidden md:block">
+              <Navigation
+                areas={areas}
+                tags={tags}
+                unsortedCount={unsortedCount}
+                currentStreak={currentStreak}
+              />
+            </div>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+              {children}
+            </main>
+
+            {/* Mobile Navigation */}
+            <MobileNav unsortedCount={unsortedCount} />
           </div>
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-            {children}
-          </main>
+          {/* Global Modals */}
+          <AddTaskModal
+            areas={areas.map((a) => ({ id: a.id, name: a.name, color: a.color }))}
+            tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+          />
 
-          {/* Mobile Navigation */}
-          <MobileNav unsortedCount={unsortedCount} />
-        </div>
-
-        {/* Global Modals */}
-        <AddTaskModal
-          areas={areas.map((a) => ({ id: a.id, name: a.name, color: a.color }))}
-          tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
-        />
-
-        {/* Keyboard Shortcuts */}
-        <KeyboardShortcuts />
+          {/* Keyboard Shortcuts */}
+          <KeyboardShortcuts />
+        </Providers>
       </body>
     </html>
   )
