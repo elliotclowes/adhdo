@@ -16,17 +16,40 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 import { useAppStore } from '@/lib/store'
+import { useNavigation } from '@/hooks/use-navigation'
 
 interface NavigationProps {
-  areas: { id: string; name: string; color: string; icon: string | null; _count: { todos: number } }[]
+  areas: { id: string; name: string; color: string; icon: string | null; requiresScheduling?: boolean; _count: { todos: number } }[]
   tags: { id: string; name: string; color: string; _count: { todos: number } }[]
   unsortedCount: number
   currentStreak?: number
 }
 
-export function Navigation({ areas, tags, unsortedCount, currentStreak = 0 }: NavigationProps) {
+export function Navigation({ areas: initialAreas, tags: initialTags, unsortedCount: initialUnsortedCount, currentStreak: initialStreak = 0 }: NavigationProps) {
   const pathname = usePathname()
   const { setAddTaskModalOpen, setEditingTodo } = useAppStore()
+
+  // Use SWR for real-time navigation data updates
+  const {
+    areas: swrAreas,
+    tags: swrTags,
+    unsortedCount: swrUnsortedCount,
+    currentStreak: swrCurrentStreak,
+  } = useNavigation({
+    fallbackData: {
+      areas: initialAreas.map(a => ({ ...a, requiresScheduling: a.requiresScheduling ?? true })),
+      tags: initialTags,
+      unsortedCount: initialUnsortedCount,
+      currentStreak: initialStreak,
+      longestStreak: 0,
+    },
+  })
+
+  // Use SWR data (with fallback to initial props)
+  const areas = swrAreas.length > 0 ? swrAreas : initialAreas
+  const tags = swrTags.length > 0 ? swrTags : initialTags
+  const unsortedCount = swrUnsortedCount
+  const currentStreak = swrCurrentStreak
 
   const mainLinks = [
     { href: '/', label: 'Today', icon: Calendar },

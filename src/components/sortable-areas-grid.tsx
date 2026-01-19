@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { GripVertical, Pencil, Check } from 'lucide-react'
 import {
   DndContext,
@@ -25,6 +24,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { reorderAreas } from '@/lib/actions/areas'
+import { useAreas } from '@/hooks/use-areas'
 
 type AreaWithCount = {
   id: string
@@ -127,11 +127,24 @@ interface SortableAreasGridProps {
 }
 
 export function SortableAreasGrid({ initialAreas }: SortableAreasGridProps) {
-  const router = useRouter()
-  const [areas, setAreas] = useState(initialAreas)
+  // Use SWR for real-time updates, with initialAreas as fallback
+  const { areas: swrAreas, mutate } = useAreas(initialAreas)
+
+  // Local state for optimistic updates during drag
+  const [localAreas, setLocalAreas] = useState(initialAreas)
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+
+  // Sync local state with SWR data when not dragging
+  useEffect(() => {
+    if (!isDragging && !isPending) {
+      setLocalAreas(swrAreas)
+    }
+  }, [swrAreas, isDragging, isPending])
+
+  // Use local areas for display (allows optimistic updates)
+  const areas = localAreas
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -163,12 +176,13 @@ export function SortableAreasGrid({ initialAreas }: SortableAreasGridProps) {
       const newIndex = areas.findIndex((a) => a.id === over.id)
 
       const newAreas = arrayMove(areas, oldIndex, newIndex)
-      setAreas(newAreas)
+      setLocalAreas(newAreas)
 
-      // Save the new order
+      // Save the new order and revalidate
       startTransition(async () => {
         await reorderAreas(newAreas.map((a) => a.id))
-        router.refresh()
+        // Revalidate SWR cache
+        mutate()
       })
     }
   }

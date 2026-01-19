@@ -1,0 +1,77 @@
+'use client'
+
+import { Ghost, RefreshCw } from 'lucide-react'
+import { useZombieTodos } from '@/hooks'
+import { TaskCard } from '@/components/task-card'
+import { Button } from '@/components/ui/button'
+import type { TodoWithRelations } from '@/lib/types'
+
+interface ZombieContentProps {
+  initialTodos: TodoWithRelations[]
+}
+
+export function ZombieContent({ initialTodos }: ZombieContentProps) {
+  const { todos, refresh, isLoading } = useZombieTodos({
+    limit: 5,
+    fallbackData: initialTodos,
+  })
+
+  const displayTodos = todos.length > 0 ? todos : initialTodos
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Ghost className="w-8 h-8 text-slate-500" />
+        </div>
+        <h1 className="text-2xl font-semibold text-foreground">Zombie Mode</h1>
+        <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+          Low energy day? Here are some easier tasks you can tackle.
+          We&apos;ve avoided difficult or time-consuming ones.
+        </p>
+      </div>
+
+      {/* Refresh Button */}
+      <div className="flex justify-center mb-6">
+        <Button
+          variant="outline"
+          onClick={() => refresh()}
+          disabled={isLoading}
+          className="gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Shuffle tasks
+        </Button>
+      </div>
+
+      {/* Tasks */}
+      {displayTodos.length > 0 ? (
+        <div className="space-y-3">
+          {displayTodos.map((todo) => (
+            <TaskCard key={todo.id} todo={todo as TodoWithRelations} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-card rounded-xl border">
+          <Ghost className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <p className="text-muted-foreground">No tasks available for zombie mode</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            All your tasks are either Vital priority or already done!
+          </p>
+        </div>
+      )}
+
+      {/* Info */}
+      <div className="mt-8 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+        <p className="font-medium text-foreground mb-1">How zombie mode works:</p>
+        <ul className="space-y-1 ml-4 list-disc">
+          <li>Excludes Vital priority tasks (those need your full attention)</li>
+          <li>Prefers tasks due sooner</li>
+          <li>Avoids tasks with long durations</li>
+          <li>Randomly picks from what&apos;s left</li>
+        </ul>
+      </div>
+    </div>
+  )
+}

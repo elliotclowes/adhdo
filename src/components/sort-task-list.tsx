@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { format, addDays, startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 import { Calendar, Clock, Loader2, Pencil, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -52,6 +51,7 @@ interface SortTaskListProps {
   needsDateTimeCount: number
   needsAreaCount: number
   areas: AreaOption[]
+  onDataChange?: () => void
 }
 
 // Sort task card component
@@ -61,14 +61,15 @@ function SortTaskCard({
   showAreaPicker,
   showDatePicker,
   onSorted,
+  onDataChange,
 }: {
   todo: TodoWithRelations
   areas: AreaOption[]
   showAreaPicker: boolean
   showDatePicker: boolean
   onSorted: () => void
+  onDataChange?: () => void
 }) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
@@ -112,7 +113,7 @@ function SortTaskCard({
     startTransition(async () => {
       await updateTodo({ id: todo.id, areaId })
       onSorted()
-      router.refresh()
+      onDataChange?.()
     })
   }
 
@@ -149,7 +150,7 @@ function SortTaskCard({
       setShowScheduleDialog(false)
       setShowLimitWarning(false)
       onSorted()
-      router.refresh()
+      onDataChange?.()
     })
   }
 
@@ -395,6 +396,7 @@ export function SortTaskList({
   needsDateTimeCount,
   needsAreaCount,
   areas,
+  onDataChange,
 }: SortTaskListProps) {
   const [sortedIds, setSortedIds] = useState<Set<string>>(new Set())
 
@@ -429,6 +431,7 @@ export function SortTaskList({
                   showAreaPicker={true}
                   showDatePicker={true}
                   onSorted={() => handleSorted(todo.id)}
+                  onDataChange={onDataChange}
                 />
               ))}
             </AnimatePresence>
@@ -457,6 +460,7 @@ export function SortTaskList({
                   showAreaPicker={false}
                   showDatePicker={true}
                   onSorted={() => handleSorted(todo.id)}
+                  onDataChange={onDataChange}
                 />
               ))}
             </AnimatePresence>
@@ -485,6 +489,7 @@ export function SortTaskList({
                   showAreaPicker={true}
                   showDatePicker={false}
                   onSorted={() => handleSorted(todo.id)}
+                  onDataChange={onDataChange}
                 />
               ))}
             </AnimatePresence>

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { format, addDays, startOfDay, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay } from 'date-fns'
 import { ChevronLeft, ChevronRight, List, CalendarDays as CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskCard } from '@/components/task-card'
 import { useAppStore } from '@/lib/store'
+import { useSchedule } from '@/hooks'
 import { cn } from '@/lib/utils'
 import type { TodoWithRelations } from '@/lib/types'
 
@@ -22,28 +22,14 @@ interface ScheduleClientProps {
 const CALENDAR_HOURS = Array.from({ length: 18 }, (_, i) => i + 6)
 
 export function ScheduleClient({ initialTodos, initialDate }: ScheduleClientProps) {
-  const router = useRouter()
   const [view, setView] = useState<ViewType>('today')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('list')
   const [currentDate, setCurrentDate] = useState(new Date(initialDate))
-  const [todos, setTodos] = useState(initialTodos)
-  const { setEditingTodo, setAddTaskModalOpen, isAddTaskModalOpen } = useAppStore()
+  const { setEditingTodo, setAddTaskModalOpen } = useAppStore()
 
-  // Update todos when initialTodos changes (after router.refresh())
-  useEffect(() => {
-    setTodos(initialTodos)
-  }, [initialTodos])
-
-  // Refresh data when modal closes
-  useEffect(() => {
-    if (!isAddTaskModalOpen) {
-      // Small delay to let the server action complete
-      const timeout = setTimeout(() => {
-        router.refresh()
-      }, 100)
-      return () => clearTimeout(timeout)
-    }
-  }, [isAddTaskModalOpen, router])
+  // Use SWR for real-time updates
+  const { todos: swrTodos } = useSchedule({ fallbackData: initialTodos })
+  const todos = Object.keys(swrTodos).length > 0 ? swrTodos : initialTodos
 
   const getDaysToShow = () => {
     const start = startOfDay(currentDate)
